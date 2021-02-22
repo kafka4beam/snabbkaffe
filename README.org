@@ -338,7 +338,6 @@ following code to the =rebar.config=:
     [ {overrides,
        [{add, [{erl_opts,
                 [ {d, 'CONCUERROR'}
-                , {d, 'HUT_IOFORMAT'}
                 ]}]}]}
     ]}
  ]}.

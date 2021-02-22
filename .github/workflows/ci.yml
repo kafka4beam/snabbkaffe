@@ -19,5 +19,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Compile
+    - name: Compile and run tests
       run: make
+    - name: Test with concuerror
+      run: make concuerror_test
