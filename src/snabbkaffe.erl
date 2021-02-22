@@ -235,7 +235,7 @@ run(Config, Run, Check) ->
     catch EC1:Error1 ?BIND_STACKTRACE(Stack1) ->
         ?GET_STACKTRACE(Stack1),
         Filename1 = dump_trace(Trace),
-        ?log(critical, "Check stage failed: ~p~n~p~nStacktrace: ~p~n"
+        ?LOG(critical, "Check stage failed: ~p~n~p~nStacktrace: ~p~n"
                        "Trace dump: ~p~n"
                      , [EC1, Error1, Stack1, Filename1]
                      ),
@@ -244,7 +244,7 @@ run(Config, Run, Check) ->
   catch EC:Error ?BIND_STACKTRACE(Stack) ->
       ?GET_STACKTRACE(Stack),
       Filename = dump_trace(collect_trace(0)),
-      ?log(critical, "Run stage failed: ~p:~p~nStacktrace: ~p~n"
+      ?LOG(critical, "Run stage failed: ~p:~p~nStacktrace: ~p~n"
                      "Trace dump: ~p~n"
                    , [EC, Error, Stack, Filename]
                    ),
@@ -257,7 +257,7 @@ proper_printout(Char, []) when Char =:= ".";
                                Char =:= "!" ->
   io:put_chars(standard_error, Char);
 proper_printout(Fmt, Args) ->
-  ?log(notice, Fmt, Args).
+  ?LOG(notice, Fmt, Args).
 
 %%====================================================================
 %% List manipulation functions
@@ -318,11 +318,11 @@ retry(Timeout, N, Fun) ->
     EC:Err ?BIND_STACKTRACE(Stack) ->
       ?GET_STACKTRACE(Stack),
       timer:sleep(Timeout),
-      ?slog(debug, #{ what => retry_fun
-                    , ec => EC
-                    , error => Err
-                    , stacktrace => Stack
-                    }),
+      ?LOG(debug, #{ what => retry_fun
+                   , ec => EC
+                   , error => Err
+                   , stacktrace => Stack
+                   }),
       retry(Timeout, N - 1, Fun)
   end.
 
@@ -604,7 +604,7 @@ take(Pred, [A|T], Acc) ->
 analyze_metric(MetricName, DataPoints = [N|_]) when is_number(N) ->
   %% This is a simple metric:
   Stats = bear:get_statistics(DataPoints),
-  ?log(notice, "-------------------------------~n"
+  ?LOG(notice, "-------------------------------~n"
                "~p statistics:~n~p~n"
              , [MetricName, Stats]);
 analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
@@ -653,14 +653,14 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
              , "\n         N    min         max        avg\n"
              , [BucketStatsToString(I) || I <- Buckets]
              ],
-  ?log(notice, "~s~n", [StatsStr]),
+  ?LOG(notice, "~s~n", [StatsStr]),
   %% Print more elaborate info for the last bucket
   case length(Buckets) of
     0 ->
       ok;
     _ ->
       {_, Last} = lists:last(Buckets),
-      ?log(info, "Stats:~n~p~n", [Last])
+      ?LOG(info, "Stats:~n~p~n", [Last])
   end.
 
 transform_stats(Data) ->

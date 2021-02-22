@@ -1,7 +1,7 @@
 -ifndef(SNABBKAFFE_HRL).
 -define(SNABBKAFFE_HRL, true).
 
--include_lib("hut/include/hut.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 -ifndef(SNK_COLLECTOR).
@@ -128,7 +128,7 @@
              __SnkRet = proper:quickcheck(
                           ?TIMEOUT( __SnkTimeout
                                   , begin
-                                      ?log(info, asciiart:visible($', "Runnung ~s", [??PROPERTY])),
+                                      ?LOG(info, asciiart:visible($', "Runnung ~s", [??PROPERTY])),
                                       PROPERTY
                                     end)
                          , [ {numtests, __SnkNumtests}
@@ -140,7 +140,7 @@
                true ->
                  ok;
                Error ->
-                 ?log(critical, asciiart:visible($!, "Proper test failed: ~p", [Error])),
+                 ?LOG(critical, asciiart:visible($!, "Proper test failed: ~p", [Error])),
                  exit(fail)
              end
          end)()).
@@ -212,7 +212,7 @@
 
 -else. %% SNK_COLLECTOR
 
--define(tp(LEVEL, KIND, EVT), ?slog(LEVEL, EVT #{?snk_kind => KIND})).
+-define(tp(LEVEL, KIND, EVT), ?LOG(LEVEL, EVT #{?snk_kind => KIND})).
 
 -define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
 

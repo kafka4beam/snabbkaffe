@@ -1,6 +1,6 @@
 #+TITLE: Snabbkaffe
 
-[[https://travis-ci.org/klarna/snabbkaffe.svg?branch=master]]
+[[https://github.com/kafka4beam/snabbkaffe/actions/workflows/ci.yml][https://github.com/kafka4beam/snabbkaffe/actions/workflows/ci.yml/badge.svg]]
 
 * Introduction
 
