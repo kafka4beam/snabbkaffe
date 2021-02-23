@@ -8,7 +8,7 @@
 init_per_testcase(TestCase, Config) ->
   case os:getenv("KEEP_CT_LOGGING") of
     false ->
-      ?log(notice, asciiart:visible($%, "Running ~p", [TestCase]));
+      ?LOG(notice, asciiart:visible($%, "Running ~p", [TestCase]));
     _ ->
       ok
   end,
@@ -36,7 +36,7 @@ end_per_testcase(TestCase, Config) ->
   snabbkaffe:stop(),
   case os:getenv("KEEP_CT_LOGGING") of
     false ->
-      ?log(notice, asciiart:visible($%, "End of ~p", [TestCase]));
+      ?LOG(notice, asciiart:visible($%, "End of ~p", [TestCase]));
     _ ->
       ok
   end,

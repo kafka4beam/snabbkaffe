@@ -101,7 +101,7 @@ t_pair_metric(_Config) when is_list(_Config) ->
   [?tp(bar, #{i => I}) || I <- lists:seq(1, 100)],
   Trace = snabbkaffe:collect_trace(),
   Pairs = ?find_pairs( true
-                     , #{?snk_kind := foo, i := I}, #{?snk_kind := bar, i := I}
+                     , #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
                      , Trace
                      ),
   snabbkaffe:push_stats(foo_bar, Pairs).
@@ -112,7 +112,7 @@ t_pair_metric_buckets(_Config) when is_list(_Config) ->
   [?tp(bar, #{i => I}) || I <- lists:seq(1, 100)],
   Trace = snabbkaffe:collect_trace(),
   Pairs = ?find_pairs( true
-                     , #{?snk_kind := foo, i := I}, #{?snk_kind := bar, i := I}
+                     , #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
                      , Trace
                      ),
   snabbkaffe:push_stats(foo_bar, 10, Pairs).
@@ -152,7 +152,7 @@ t_proper(Config) when is_list(Config) ->
 t_forall_trace(Config0) when is_list(Config0) ->
   Config = [{proper, #{ max_size => 100
                       , numtests => 1000
-                      , timeout  => 30000
+                      , timeout  => 60000
                       }} | Config0],
   Prop =
     ?forall_trace(
@@ -197,7 +197,7 @@ t_prop_run_exception(Config) when is_list(Config) ->
              ).
 
 t_prop_check_exception(Config) when is_list(Config) ->
-  ?log(notice, "Don't mind the below crashes, they are intentional!", []),
+  ?LOG(notice, "Don't mind the below crashes, they are intentional!", []),
   Prop = ?forall_trace(
             X, list(),
             42, %% Bucket

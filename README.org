@@ -1,6 +1,6 @@
 #+TITLE: Snabbkaffe
 
-[[https://travis-ci.org/klarna/snabbkaffe.svg?branch=master]]
+[[https://github.com/kafka4beam/snabbkaffe/actions/workflows/ci.yml][https://github.com/kafka4beam/snabbkaffe/actions/workflows/ci.yml/badge.svg]]
 
 * Introduction
 
@@ -41,8 +41,8 @@ in the second argument. Any event has a /kind/, which is an atom
 identifying type of the event. The second argument must be a map, and
 it can contain any data.
 
-In the release build this macro will become a [[https://github.com/tolbrino/hut/][hut]] log message with
-=debug= level. One can as well tune trace point log level:
+In the release build this macro will become a log message with =debug=
+level. One can as well tune trace point log level:
 
 #+BEGIN_SRC erlang
 ?tp(notice, my_server_state_change, #{old_state => foo, next_state => bar})
@@ -94,8 +94,9 @@ Check that events occur in certain order, and throw an exception
 otherwise:
 
 #+BEGIN_SRC erlang
-?causality( #{?snk_kind := foo, foo := _A}
-          , #{?snk_kind := bar, foo := _A}
+%% Verify that messages don't get acked before they are processed:
+?causality( #{?snk_kind := message_processed, id := _A}
+          , #{?snk_kind := message_acked,     id := _A}
           , Trace
           )
 #+END_SRC
@@ -109,8 +110,9 @@ This macro can be extended with a guard as well. Here guard checks
 that two events actually make up a pair:
 
 #+BEGIN_SRC erlang
-?causality( #{?snk_kind := foo, foo := _A}
-          , #{?snk_kind := bar, foo := _B}
+%% Verify that the new leader, if it's elected, gets a new generation_id:
+?causality( #{?snk_kind := leader_failed,  generation_id := _A}
+          , #{?snk_kind := leader_elected, generation_id := _B}
           , _A + 1 =:= _B
           , Trace
           )
@@ -120,8 +122,9 @@ There is a version of the above macro that checks that all cause have
 an effect:
 
 #+BEGIN_SRC erlang
-?strict_causality( #{?snk_kind := foo, foo := _A}
-                 , #{?snk_kind := bar, foo := _A}
+%% Verify that no messages are lost:
+?strict_causality( #{?snk_kind := message_sent,     id := _A}
+                 , #{?snk_kind := message_received, id := _A}
                  , Trace
                  )
 #+END_SRC
@@ -338,7 +341,6 @@ following code to the =rebar.config=:
     [ {overrides,
        [{add, [{erl_opts,
                 [ {d, 'CONCUERROR'}
-                , {d, 'HUT_IOFORMAT'}
                 ]}]}]}
     ]}
  ]}.
