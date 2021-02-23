@@ -42,7 +42,15 @@ identifying type of the event. The second argument must be a map, and
 it can contain any data.
 
 In the release build this macro will become a log message with =debug=
-level. One can as well tune trace point log level:
+level.
+
+Strings also can be used to identify the events:
+
+#+BEGIN_SRC erlang
+?tp("My server's state change", #{old_state => foo, next_state => bar})
+#+END_SRC
+
+One can as well tune trace point log level:
 
 #+BEGIN_SRC erlang
 ?tp(notice, my_server_state_change, #{old_state => foo, next_state => bar})
