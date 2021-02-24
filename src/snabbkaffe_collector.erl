@@ -58,7 +58,7 @@
 %%% API
 %%%===================================================================
 
--spec tp(atom(), map()) -> ok.
+-spec tp(snabbkaffe:kind(), map()) -> ok.
 tp(Kind, Event) ->
   Event1 = Event #{ ts        => timestamp()
                   , ?snk_kind => Kind

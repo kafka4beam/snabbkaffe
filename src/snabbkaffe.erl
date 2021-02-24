@@ -63,7 +63,7 @@
 %% Types
 %%====================================================================
 
--type kind() :: atom().
+-type kind() :: atom() | string().
 
 -type metric() :: atom().
 
@@ -175,6 +175,8 @@ stop() ->
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().
 events_of_kind(Kind, Events) when is_atom(Kind) ->
+  events_of_kind([Kind], Events);
+events_of_kind([C|_] = Kind, Events) when is_integer(C) -> % Handle strings
   events_of_kind([Kind], Events);
 events_of_kind(Kinds, Events) ->
   [E || E = #{?snk_kind := Kind} <- Events, lists:member(Kind, Kinds)].

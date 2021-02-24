@@ -48,6 +48,18 @@ t_check_trace(_Config) when is_list(_Config) ->
                      , Trace)
      end).
 
+t_kind_as_string(_Config) when is_list(_Config) ->
+  ?check_trace(
+     begin
+       ?tp("event1", #{foo => 1}),
+       ?tp("event2", #{bar => 2})
+     end,
+     fun(_Ret, Trace) ->
+         ?assertMatch([#{foo := 1}], ?of_kind("event1", Trace)),
+         ?assertMatch([#{bar := 2}], ?of_kind("event2", Trace)),
+         ?assertMatch([_, _], ?of_kind(["event1", "event2"], Trace))
+     end).
+
 prop_async_collect() ->
   ?FORALL(
      {MaxWaitTime, Events},
