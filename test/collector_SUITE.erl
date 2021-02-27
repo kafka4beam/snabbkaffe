@@ -209,7 +209,7 @@ t_prop_run_exception(Config) when is_list(Config) ->
              ).
 
 t_prop_check_exception(Config) when is_list(Config) ->
-  ?LOG(notice, "Don't mind the below crashes, they are intentional!", []),
+  logger:notice("Don't mind the below crashes, they are intentional!", []),
   Prop = ?forall_trace(
             X, list(),
             42, %% Bucket
