@@ -13,3 +13,4 @@ concuerror_report.txt
 TAGS
 rebar3.crashdump
 snabbkaffe
+rebar.lock

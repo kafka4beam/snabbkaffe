@@ -63,7 +63,7 @@ tp(Kind, Event) ->
   Event1 = Event #{ ts        => timestamp()
                   , ?snk_kind => Kind
                   },
-  ?LOG(debug, Event1),
+  logger:debug(Event1),
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
   %% doesn't guarantee order of messages from different processes. So
