@@ -421,7 +421,7 @@ analyze_statistics() ->
                , fun((event()) -> ok)
                , fun((event(), event()) -> boolean())
                , trace()
-               ) -> ok.
+               ) -> boolean().
 causality(Strict, CauseP, EffectP, Guard, Trace) ->
   Pairs = find_pairs(true, CauseP, EffectP, Guard, Trace),
   if Strict ->
@@ -430,7 +430,7 @@ causality(Strict, CauseP, EffectP, Guard, Trace) ->
      true ->
       ok
   end,
-  ok.
+  length(Pairs) > 0.
 
 -spec unique(trace()) -> true.
 unique(Trace) ->
