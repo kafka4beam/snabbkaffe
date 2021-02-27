@@ -18,6 +18,8 @@ concuerror_test: $(CONCUERROR)
 	$(call concuerror,race_test)
 	$(call concuerror,causality_test)
 	$(call concuerror,fail_test)
+	$(call concuerror,force_order_test)
+	$(call concuerror,force_order_multiple_predicates)
 
 $(CONCUERROR):
 	mkdir -p _build/

@@ -126,6 +126,7 @@ tp(Location, Level, Kind, Data) ->
 -spec local_tp(term(), logger:level(), kind(), map()) -> ok.
 local_tp(Location, _Level, Kind, Data) ->
   Event = Data #{?snk_kind => Kind},
+  snabbkaffe_nemesis:maybe_delay(Event),
   snabbkaffe_nemesis:maybe_crash(Location, Event),
   snabbkaffe_collector:tp(Event).
 
