@@ -603,10 +603,10 @@ take(Pred, [A|T], Acc) ->
 
 analyze_metric(MetricName, DataPoints = [N|_]) when is_number(N) ->
   %% This is a simple metric:
-  Stats = bear:get_statistics(DataPoints),
+  Mean = mean(DataPoints),
   logger:notice("-------------------------------~n"
-                "~p statistics:~n~p~n",
-                [MetricName, Stats]);
+                "Mean ~p: ~p~n",
+                [MetricName, Mean]);
 analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
   %% This "clustering" is not scientific at all
   {XX, _} = lists:unzip(Datapoints),
@@ -627,8 +627,7 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
   Buckets0 = lists:foldl(PushBucket, #{}, Datapoints),
   BucketStats =
     fun({Key, Vals}) when length(Vals) > 5 ->
-        Stats = bear:get_statistics(Vals),
-        {true, {Key, Stats}};
+        {true, {Key, mean(Vals)}};
        (_) ->
         false
     end,
@@ -636,21 +635,15 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
                            , lists:keysort(1, maps:to_list(Buckets0))
                            ),
   %% Print per-bucket stats:
-  PlotPoints = [{Bucket, proplists:get_value(arithmetic_mean, Stats)}
-                ||{Bucket, Stats} <- Buckets],
+  PlotPoints = Buckets,
   Plot = asciiart:plot([{$*, PlotPoints}]),
   BucketStatsToString =
-    fun({Key, Stats}) ->
-        io_lib:format( "~10b ~e ~e ~e~n"
-                     , [ Key
-                       , proplists:get_value(min, Stats) * 1.0
-                       , proplists:get_value(max, Stats) * 1.0
-                       , proplists:get_value(arithmetic_mean, Stats) * 1.0
-                       ])
+    fun({Key, Mean}) ->
+        io_lib:format("~10b ~e~n", [Key, Mean])
     end,
   StatsStr = [ "Statisitics of ", atom_to_list(MetricName), $\n
              , asciiart:render(Plot)
-             , "\n         N    min         max        avg\n"
+             , "\n         N    avg\n"
              , [BucketStatsToString(I) || I <- Buckets]
              ],
   logger:notice("~s~n", [StatsStr]),
@@ -686,3 +679,13 @@ splitwith_(Pred, [Hd|Tail], Taken) ->
   end;
 splitwith_(_Pred, [], Taken) ->
   {lists:reverse(Taken), []}.
+
+mean([]) ->
+  0;
+mean([X|Rest]) ->
+  mean(X, 1, Rest).
+
+mean(Sum, N, []) ->
+  Sum / N;
+mean(Sum, N, [X|Rest]) ->
+  mean(Sum + X, N + 1, Rest).
