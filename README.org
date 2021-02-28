@@ -139,6 +139,10 @@ an effect:
 
 Otherwise it works just like =?causality=.
 
+Both macros return =true= if they matched some events in the correct
+order, =false= when they didn't find any matching events, and throw an
+exception when the expected ordering is violated.
+
 Both =?causality= and =?strict_causality= are actually based on a more
 powerful =?find_pairs= macro that is invoked like this:
 

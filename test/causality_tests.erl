@@ -115,13 +115,13 @@ spwg_success_test() ->
               ).
 
 scng_succ_test() ->
-  ?assertMatch( ok
+  ?assertMatch( false
               , ?SCNG([])
               ),
-  ?assertMatch( ok
+  ?assertMatch( false
               , ?SCNG([#{quux => 1}, #{quux => 2}])
               ),
-  ?assertMatch( ok
+  ?assertMatch( true
               , ?SCNG([?foo(1), ?foo(2), foo, ?bar(2), ?bar(1)])
               ).
 
@@ -131,12 +131,12 @@ scng_fail_test() ->
               ).
 
 wcng_succ_test() ->
-  ?assertMatch( ok
+  ?assertMatch( false
               , ?WCNG([])
               ),
-  ?assertMatch( ok
+  ?assertMatch( false
               , ?WCNG([#{quux => 1}, #{quux => 2}])
               ),
-  ?assertMatch( ok
+  ?assertMatch( true
               , ?WCNG([?foo(1), ?foo(2), foo, ?bar(2)])
               ).
