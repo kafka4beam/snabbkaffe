@@ -123,6 +123,7 @@ notify_on_event(Predicate, Timeout, Callback) ->
 %%%===================================================================
 
 init([]) ->
+  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/4),
   TS = timestamp(),
   BeginTrace = #{ ts        => TS
                 , ?snk_kind => '$trace_begin'
@@ -216,6 +217,7 @@ handle_info(_, State) ->
   {noreply, State}.
 
 terminate(_Reason, _State) ->
+  persistent_term:erase(snabbkaffe_tp_fun),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
