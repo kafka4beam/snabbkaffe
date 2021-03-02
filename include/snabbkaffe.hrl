@@ -26,10 +26,7 @@
         snabbkaffe_nemesis:maybe_crash(?__snkStaticUniqueToken, DATA)).
 
 -define(tp(LEVEL, KIND, EVT),
-        (fun() ->
-             ?maybe_crash(EVT #{?snk_kind => KIND}),
-             snabbkaffe_collector:tp(KIND, EVT)
-         end)()).
+        snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).
 
 -define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
 

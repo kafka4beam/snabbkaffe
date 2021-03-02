@@ -20,7 +20,8 @@
 -include("snabbkaffe_internal.hrl").
 
 %% API exports
--export([ start_trace/0
+-export([ tp/4
+        , start_trace/0
         , stop/0
         , collect_trace/0
         , collect_trace/1
@@ -105,6 +106,12 @@
 %%====================================================================
 %% API functions
 %%====================================================================
+
+-spec tp(term(), logger:level(), kind(), map()) -> ok.
+tp(Location, _Level, Kind, Data) ->
+  Event = Data #{?snk_kind => Kind},
+  snabbkaffe_nemesis:maybe_crash(Location, Event),
+  snabbkaffe_collector:tp(Event).
 
 -spec collect_trace() -> trace().
 collect_trace() ->
@@ -223,7 +230,7 @@ run(Config, Run, Check) ->
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
-  snabbkaffe_collector:tp('$trace_begin', #{}),
+  snabbkaffe_collector:tp(#{?snk_kind => '$trace_begin'}),
   try
     Return  = Run(),
     Trace   = collect_trace(Timeout),
