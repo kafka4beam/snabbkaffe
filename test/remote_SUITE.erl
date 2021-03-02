@@ -47,6 +47,25 @@ t_remote_fail(Config) when is_list(Config) ->
          ?assertMatch([_], ?of_kind(snabbkaffe_crash, Trace))
      end).
 
+t_remote_delay(Config) when is_list(Config) ->
+  Remote = start_slave(snkremote),
+  ?check_trace(
+     #{timeout => 1000},
+     begin
+       ?force_ordering(#{?snk_kind := foo, id := _A}, #{?snk_kind := bar, id := _A}),
+       ?assertEqual(ok, rpc:call(Remote, remote_funs, remote_delay, [], infinity)),
+       timer:sleep(300),
+       ?tp(foo, #{id => 1}),
+       ?tp(foo, #{id => 2})
+     end,
+     fun(_, Trace) ->
+         ?assert(?strict_causality( #{?snk_kind := foo, id := _A}
+                                  , #{?snk_kind := bar, id := _A}
+                                  , Trace
+                                  )),
+         ?projection_complete(id, ?of_kind(bar, Trace), [1, 2])
+     end).
+
 %%====================================================================
 %% Internal functions
 %%====================================================================

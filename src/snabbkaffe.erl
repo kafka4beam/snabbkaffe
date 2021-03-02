@@ -101,6 +101,8 @@
 
 -type predicate() :: fun((event()) -> boolean()).
 
+-type predicate2() :: fun((event(), event()) -> boolean()).
+
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
              ]).

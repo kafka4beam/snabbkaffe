@@ -98,17 +98,17 @@
 %% Injected delay:
 -record(delay,
         { reference          :: reference()
-        , delay_predicate    :: snabbkaffe:predicate() % Event that is being delayed
-        , continue_predicate :: snabbkaffe:predicate() % Event that unlocks execution of the delayed process
+        , delay_predicate    :: snabbkaffe:predicate()  % Event that is being delayed
+        , continue_predicate :: snabbkaffe:predicate2() % Event that unlocks execution of the delayed process
         }).
 
 %% Currently this gen_server just holds the ets tables and
 %% synchronizes writes to the fault table, but in the future it may be
 %% used to mess up the system in more interesting ways
 -record(s,
-        { injected_errors         :: ets:tid()
-        , fault_states            :: ets:tid()
-        , injected_delays         :: ets:tid()
+        { injected_errors :: ets:tid()
+        , fault_states    :: ets:tid()
+        , injected_delays :: ets:tid()
         }).
 
 %%%===================================================================
@@ -167,7 +167,7 @@ maybe_crash(Key, Data) ->
   ok.
 
 %% @doc Inject delay into the system
--spec inject_delay(snabbkaffe:predicate(), snabbkaffe:predicate()) -> reference().
+-spec inject_delay(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
 inject_delay(DelayPredicate, ContinuePredicate) ->
   Ref = make_ref(),
   Delay = #delay{ reference          = Ref
@@ -181,9 +181,13 @@ inject_delay(DelayPredicate, ContinuePredicate) ->
 -spec maybe_delay(map()) -> ok.
 maybe_delay(Event) ->
   [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
-  Fun = fun(#delay{delay_predicate = P}) -> P(Event) end,
-  [snabbkaffe_collector:block_until(Pred, infinity, infinity)
-   || #delay{reference = Ref, continue_predicate = Pred} <- lists:filter(Fun, Delays)],
+  [snabbkaffe_collector:block_until( fun(WU) -> ContP(Event, WU) end
+                                   , infinity
+                                   , infinity
+                                   )
+   || #delay{ continue_predicate = ContP
+            , delay_predicate    = DelayP
+            } <- Delays, DelayP(Event)],
   ok.
 
 %%%===================================================================

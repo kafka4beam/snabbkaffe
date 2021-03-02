@@ -45,10 +45,13 @@
 -define(maybe_crash(DATA),
         snabbkaffe_nemesis:maybe_crash(?__snkStaticUniqueToken, DATA)).
 
--define(force_ordering(DELAY_PATTERN, CONTINUE_PATTERN),
-        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(CONTINUE_PATTERN)
-                                       , ?snk_int_match_arg(DELAY_PATTERN)
+-define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, GUARD),
+        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(DELAY_PATTERN)
+                                       , ?snk_int_match_arg2(DELAY_PATTERN, CONTINUE_PATTERN, GUARD)
                                        )).
+
+-define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN),
+        ?force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, true)).
 
 -define(tp(LEVEL, KIND, EVT),
         snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).

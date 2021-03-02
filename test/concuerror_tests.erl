@@ -8,6 +8,7 @@
         , fail_test/0
         , force_order_test/0
         , force_order_multiple_predicates/0
+        , force_order_parametrized/0
         ]).
 
 race_test() ->
@@ -94,7 +95,6 @@ fail_test() ->
     _:_ -> ok
   end.
 
-
 %% Check that ordering of events is correct when ?force_ordering is used
 force_order_test() ->
   ?check_trace(
@@ -111,8 +111,8 @@ force_order_test() ->
        [?block_until(#{?snk_kind := second, id := I}) || I <- [1,2]]
      end,
      fun(_Result, Trace) ->
-         ?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 1}, Trace),
-         ?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 2}, Trace)
+         ?assert(?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 1}, Trace)),
+         ?assert(?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 2}, Trace))
      end).
 
 %% Check waiting for multiple events
@@ -129,6 +129,34 @@ force_order_multiple_predicates() ->
        {ok, _} = ?block_until(#{?snk_kind := foo})
      end,
      fun(_Result, Trace) ->
-         true = ?strict_causality(#{?snk_kind := bar}, #{?snk_kind := foo}, Trace),
-         true = ?strict_causality(#{?snk_kind := baz}, #{?snk_kind := foo}, Trace)
+         ?assert(?strict_causality(#{?snk_kind := bar}, #{?snk_kind := foo}, Trace)),
+         ?assert(?strict_causality(#{?snk_kind := baz}, #{?snk_kind := foo}, Trace))
+     end).
+
+%% Check parameter bindings in force_ordering
+force_order_parametrized() ->
+  ?check_trace(
+     begin
+       ?force_ordering( #{?snk_kind := foo, id := _A}
+                      , #{?snk_kind := bar, id := _A}
+                      ),
+       spawn(
+         fun() ->
+             ?tp(bar, #{id => 1})
+         end),
+       spawn(
+         fun() ->
+             ?tp(bar, #{id => 2})
+         end),
+       timer:sleep(100),
+       ?tp(foo, #{id => 1}),
+       ?tp(foo, #{id => 2}),
+       ?block_until(#{?snk_kind := bar, id := 1}),
+       ?block_until(#{?snk_kind := bar, id := 2})
+     end,
+     fun(_, Trace) ->
+         ?assert(?strict_causality( #{?snk_kind := foo, id := _A}
+                                  , #{?snk_kind := bar, id := _A}
+                                  , Trace
+                                  ))
      end).
