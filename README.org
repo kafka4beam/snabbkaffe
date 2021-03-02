@@ -254,6 +254,23 @@ this race condition:
 do_stuff(Pid)
 #+END_SRC
 
+** Blocking execution of the SUT until certain event is emitted
+
+Sometimes it is necessary to test a certain process
+scheduling. Imagine writing a regression test verifying absence of a
+certain bug, that happens only when an event =bar= happens after an
+event =foo=. Snabbkaffe trace points could be used to artificially
+delay execution of the processes and enforce the expected ordering of
+the events:
+
+#+BEGIN_SRC erlang
+%% run stage...
+?force_ordering(#{?snk_kind := foo, ...}, #{?snk_kind := bar})
+#+END_SRC
+
+This will cause the process that tries to produce an event of kind
+=foo= to wait for another process to produce the event of kind =bar=.
+
 ** Declarative fault injection
 
 Any trace point can also be used to inject crashes into the

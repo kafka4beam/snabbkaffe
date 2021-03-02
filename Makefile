@@ -14,10 +14,13 @@ concuerror = $(CONCUERROR_RUN) -f $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/te
 
 .PHONY: concuerror_test
 concuerror_test: $(CONCUERROR)
-	rebar3 as concuerror eunit
+	rebar3 as concuerror eunit -m concuerror_tests
 	$(call concuerror,race_test)
 	$(call concuerror,causality_test)
 	$(call concuerror,fail_test)
+	$(call concuerror,force_order_test)
+	$(call concuerror,force_order_multiple_predicates)
+	$(call concuerror,force_order_parametrized)
 
 $(CONCUERROR):
 	mkdir -p _build/

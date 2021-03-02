@@ -36,6 +36,12 @@
                   , Trace
                   )).
 
+%% Weak Cuasality With Guard
+-define(WCWG(Trace),
+        ?causality( #{foo := _A}, #{bar := _B}, _A + 1 =:= _B
+                  , Trace
+                  )).
+
 -define(foo(A), #{foo => A}).
 -define(bar(A), #{bar => A}).
 
@@ -90,6 +96,22 @@ fpng_success_test() ->
                       ])
               ).
 
+wcwg_succ_test() ->
+  ?assertMatch( false
+              , ?WCWG([])
+              ),
+  ?assertMatch( true
+              , ?WCWG([?foo(1)])
+              ),
+  ?assertMatch( true
+              , ?WCWG([?foo(1), ?bar(2)])
+              ).
+
+wcwg_fail_test() ->
+  ?assertError( {panic, _}
+              , ?WCWG([?foo(2), ?bar(1)])
+              ).
+
 fpng_scoped_test() ->
   %% Test that match specs in ?find_pairs capture variables from the
   %% context:
@@ -112,6 +134,11 @@ spwg_success_test() ->
               ),
   ?assertMatch( [?singleton(1), ?pair_inc(2)]
               , ?SPWG([?foo(1), ?foo(2), foo, ?bar(3), bar])
+              ).
+
+spwg_fail_test() ->
+  ?assertError( {panic, _}
+              , ?SPWG([?foo(2), ?bar(1)])
               ).
 
 scng_succ_test() ->

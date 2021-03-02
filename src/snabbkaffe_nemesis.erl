@@ -43,6 +43,9 @@
         , inject_crash/3
         , fix_crash/1
         , maybe_crash/2
+          %% Delay
+        , inject_delay/2
+        , maybe_delay/1
           %% Failure scenarios
         , always_crash/0
         , recover_after/1
@@ -60,6 +63,7 @@
 
 -define(ERROR_TAB, snabbkaffe_injected_errors).
 -define(STATE_TAB, snabbkaffe_fault_states).
+-define(DELAY_TAB, snabbkaffe_injected_delays).
 -define(SINGLETON_KEY, 0).
 
 %%%===================================================================
@@ -86,9 +90,16 @@
 %% Injected error:
 -record(fault,
         { reference :: reference()
-        , predicate :: snabbkaffe:prediacate()
+        , predicate :: snabbkaffe:predicate()
         , scenario  :: snabbkaffe:fault_scenario()
         , reason    :: term()
+        }).
+
+%% Injected delay:
+-record(delay,
+        { reference          :: reference()
+        , delay_predicate    :: snabbkaffe:predicate()  % Event that is being delayed
+        , continue_predicate :: snabbkaffe:predicate2() % Event that unlocks execution of the delayed process
         }).
 
 %% Currently this gen_server just holds the ets tables and
@@ -97,6 +108,7 @@
 -record(s,
         { injected_errors :: ets:tid()
         , fault_states    :: ets:tid()
+        , injected_delays :: ets:tid()
         }).
 
 %%%===================================================================
@@ -137,24 +149,46 @@ maybe_crash(Key, Data) ->
   %% Check if any of the injected errors have predicates matching my
   %% data:
   Fun = fun(#fault{predicate = P}) -> P(Data) end,
-  case lists:filter(Fun, Faults) of
-    [] ->
-      %% None of the injected faults match my data:
-      ok;
-    [#fault{scenario = S, reason = R}|_] ->
-      NewVal = ets:update_counter(?STATE_TAB, Key, {2, 1}, {Key, 0}),
-      %% Run fault_scenario function to see if we need to crash this
-      %% time:
-      case S(NewVal) of
-        true ->
-          snabbkaffe_collector:tp(Data#{ crash_kind => Key
-                                       , ?snk_kind  => snabbkaffe_crash
-                                       }),
-          error(R);
-        false ->
-          ok
-      end
-  end.
+  [begin
+     NewVal = ets:update_counter(?STATE_TAB, Key, {2, 1}, {Key, 0}),
+     %% Run fault_scenario function to see if we need to crash this
+     %% time:
+     case S(NewVal) of
+       true ->
+         snabbkaffe_collector:tp(Data#{ crash_kind => Key
+                                      , ?snk_kind  => snabbkaffe_crash
+                                      }),
+         error(R);
+       false ->
+         ok
+     end
+   end
+   || #fault{scenario = S, reason = R} <- lists:filter(Fun, Faults)],
+  ok.
+
+%% @doc Inject delay into the system
+-spec inject_delay(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
+inject_delay(DelayPredicate, ContinuePredicate) ->
+  Ref = make_ref(),
+  Delay = #delay{ reference          = Ref
+                , delay_predicate    = DelayPredicate
+                , continue_predicate = ContinuePredicate
+                },
+  ok = gen_server:call(?SERVER, {inject_delay, Delay}, infinity),
+  Ref.
+
+%% @doc Check if the trace point should be delayed.
+-spec maybe_delay(map()) -> ok.
+maybe_delay(Event) ->
+  [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
+  [snabbkaffe_collector:block_until( fun(WU) -> ContP(Event, WU) end
+                                   , infinity
+                                   , infinity
+                                   )
+   || #delay{ continue_predicate = ContP
+            , delay_predicate    = DelayP
+            } <- Delays, DelayP(Event)],
+  ok.
 
 %%%===================================================================
 %%% Fault scenarios
@@ -207,9 +241,16 @@ init([]) ->
                            , {read_concurrency, true}
                            , protected
                            ]),
+  DT = ets:new(?DELAY_TAB, [ named_table
+                           , {write_concurrency, false}
+                           , {read_concurrency, true}
+                           , public
+                           ]),
   ets:insert(?ERROR_TAB, {?SINGLETON_KEY, []}),
+  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, []}),
   {ok, #s{ injected_errors = FT
          , fault_states    = ST
+         , injected_delays = DT
          }}.
 
 %% @private
@@ -221,6 +262,10 @@ handle_call({fix_crash, Ref}, _From, State) ->
   [{_, Faults0}] = ets:lookup(?ERROR_TAB, ?SINGLETON_KEY),
   Faults = lists:keydelete(Ref, #fault.reference, Faults0),
   ets:insert(?ERROR_TAB, {?SINGLETON_KEY, Faults}),
+  {reply, ok, State};
+handle_call({inject_delay, Delay}, _From, State) ->
+  [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
+  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, [Delay|Delays]}),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.

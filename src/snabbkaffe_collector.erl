@@ -23,6 +23,7 @@
         , get_stats/0
         , block_until/3
         , notify_on_event/3
+        , notify_on_event/4
         , tp/1
         , push_stat/3
         ]).
@@ -113,8 +114,13 @@ block_until(Predicate, Timeout, BackInTime) ->
 -spec notify_on_event(snabbkaffe:predicate(), timeout(), async_action()) ->
                          ok.
 notify_on_event(Predicate, Timeout, Callback) ->
+  notify_on_event(Predicate, Timeout, timestamp(), Callback).
+
+-spec notify_on_event(snabbkaffe:predicate(), timeout(), timeout(), async_action()) ->
+                         ok.
+notify_on_event(Predicate, Timeout, BackInTime, Callback) ->
   gen_server:call( ?SERVER
-                 , {notify_on_event, Callback, Predicate, Timeout}
+                 , {notify_on_event, Callback, Predicate, Timeout, BackInTime}
                  , infinity
                  ).
 
@@ -139,7 +145,7 @@ handle_cast({trace, Evt}, State0 = #s{trace = T0, callbacks = CB0}) ->
                   , callbacks     = CB
                   },
   {noreply, State};
-handle_cast(Evt, State) ->
+handle_cast(_Evt, State) ->
   {noreply, State}.
 
 handle_call({trace, Evt}, _From, State0 = #s{trace = T0, callbacks = CB0}) ->
@@ -167,9 +173,8 @@ handle_call({block_until, Predicate, Timeout, Infimum}, From, State0) ->
              end,
   State = maybe_subscribe(Predicate, Timeout, Infimum, Callback, State0),
   {noreply, State};
-handle_call({notify_on_event, Callback, Predicate, Timeout}, _From, State0) ->
-  Now = erlang:monotonic_time(),
-  State = maybe_subscribe(Predicate, Timeout, Now, Callback, State0),
+handle_call({notify_on_event, Callback, Predicate, Timeout, BackInTime}, _From, State0) ->
+  State = maybe_subscribe(Predicate, Timeout, BackInTime, Callback, State0),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   Reply = unknown_call,
@@ -296,7 +301,7 @@ send_after(infinity, _, _) ->
 send_after(Timeout, Pid, Msg) ->
   erlang:send_after(Timeout, Pid, Msg).
 
--spec infimum(integer()) -> integer().
+-spec infimum(timeout()) -> integer().
 -ifndef(CONCUERROR).
 infimum(infinity) ->
   beginning_of_times();

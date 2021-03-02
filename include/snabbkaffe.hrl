@@ -11,31 +11,6 @@
 
 -ifdef(SNK_COLLECTOR).
 
--define(panic(KIND, ARGS),
-        error({panic, (ARGS) #{?snk_kind => (KIND)}})).
-
-%% Dirty hack: we use reference to a local function as a key that can
-%% be used to refer error injection points. This works, because all
-%% invokations of this macro create a new fun object with unique id.
--define(__snkStaticUniqueToken, fun() -> ok end).
-
--define(maybe_crash(KIND, DATA),
-        snabbkaffe_nemesis:maybe_crash(KIND, DATA#{?snk_kind => KIND})).
-
--define(maybe_crash(DATA),
-        snabbkaffe_nemesis:maybe_crash(?__snkStaticUniqueToken, DATA)).
-
--define(tp(LEVEL, KIND, EVT),
-        snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).
-
--define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
-
--define(of_kind(KIND, TRACE),
-        snabbkaffe:events_of_kind(KIND, TRACE)).
-
--define(projection(FIELDS, TRACE),
-        snabbkaffe:projection(FIELDS, TRACE)).
-
 -define(snk_int_match_arg(ARG),
         fun(__SnkArg) ->
             case __SnkArg of
@@ -55,6 +30,39 @@
               _ -> false
             end
         end).
+
+-define(panic(KIND, ARGS),
+        error({panic, (ARGS) #{?snk_kind => (KIND)}})).
+
+%% Dirty hack: we use reference to a local function as a key that can
+%% be used to refer error injection points. This works, because all
+%% invokations of this macro create a new fun object with unique id.
+-define(__snkStaticUniqueToken, fun() -> ok end).
+
+-define(maybe_crash(KIND, DATA),
+        snabbkaffe_nemesis:maybe_crash(KIND, DATA#{?snk_kind => KIND})).
+
+-define(maybe_crash(DATA),
+        snabbkaffe_nemesis:maybe_crash(?__snkStaticUniqueToken, DATA)).
+
+-define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, GUARD),
+        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(DELAY_PATTERN)
+                                       , ?snk_int_match_arg2(DELAY_PATTERN, CONTINUE_PATTERN, GUARD)
+                                       )).
+
+-define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN),
+        ?force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, true)).
+
+-define(tp(LEVEL, KIND, EVT),
+        snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).
+
+-define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
+
+-define(of_kind(KIND, TRACE),
+        snabbkaffe:events_of_kind(KIND, TRACE)).
+
+-define(projection(FIELDS, TRACE),
+        snabbkaffe:projection(FIELDS, TRACE)).
 
 -define(find_pairs(STRICT, M1, M2, GUARD, TRACE),
         snabbkaffe:find_pairs( STRICT
