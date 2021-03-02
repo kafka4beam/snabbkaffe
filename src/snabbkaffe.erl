@@ -114,9 +114,14 @@
 %%====================================================================
 
 -spec tp(term(), logger:level(), kind(), map()) -> ok.
+-ifndef(CONCUERROR).
 tp(Location, Level, Kind, Data) ->
   Fun = persistent_term:get(snabbkaffe_tp_fun),
   apply(Fun, [Location, Level, Kind, Data]).
+-else.
+tp(Location, Level, Kind, Data) ->
+  local_tp(Location, Level, Kind, Data).
+-endif. %% CONCUERROR
 
 -spec local_tp(term(), logger:level(), kind(), map()) -> ok.
 local_tp(Location, _Level, Kind, Data) ->
