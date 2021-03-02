@@ -111,7 +111,7 @@ otherwise:
 
 First argument of =?causality= macro matches an event that is called
 the /cause/, and the second one matches so called /effect/. The above
-example checks events of kind =message_acked= occur only after 
+example checks events of kind =message_acked= occur only after
 corresponding events of kind =message_processed=.
 
 This macro can be extended with a guard as well. Here guard checks
@@ -207,6 +207,18 @@ or:
 #+END_SRC
 
 =Bucket= is a parameter used for benchmarking, more on that later.
+
+** Forwarding traces from the remote node
+
+It is possible to collect traces from remote nodes over Erlang
+distribution protocol. Distributed tracing follows star topology,
+where one node (typically CT master) takes the leader role, and runs
+=snabbkaffe_collector= process, and the rest of the nodes forward
+traces to the leader node.
+
+Forwarding is set up by calling =snabbkaffe:forward_trace(Node)=
+function on the /leader/, where =Node= is node name of the remote
+node (for example it could be a =ct_slave=).
 
 ** Blocking execution of testcase until certain event is emitted
 

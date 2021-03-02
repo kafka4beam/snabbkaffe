@@ -20,7 +20,9 @@
 -include("snabbkaffe_internal.hrl").
 
 %% API exports
--export([ start_trace/0
+-export([ tp/4
+        , start_trace/0
+        , forward_trace/1
         , stop/0
         , collect_trace/0
         , collect_trace/1
@@ -57,6 +59,11 @@
 
 -export([ mk_all/1
         , retry/3
+        ]).
+
+%% Internal exports:
+-export([ local_tp/4
+        , remote_tp/4
         ]).
 
 %%====================================================================
@@ -105,6 +112,30 @@
 %%====================================================================
 %% API functions
 %%====================================================================
+
+-spec tp(term(), logger:level(), kind(), map()) -> ok.
+-ifndef(CONCUERROR).
+tp(Location, Level, Kind, Data) ->
+  Fun = persistent_term:get(snabbkaffe_tp_fun),
+  apply(Fun, [Location, Level, Kind, Data]).
+-else.
+tp(Location, Level, Kind, Data) ->
+  local_tp(Location, Level, Kind, Data).
+-endif. %% CONCUERROR
+
+-spec local_tp(term(), logger:level(), kind(), map()) -> ok.
+local_tp(Location, _Level, Kind, Data) ->
+  Event = Data #{?snk_kind => Kind},
+  snabbkaffe_nemesis:maybe_crash(Location, Event),
+  snabbkaffe_collector:tp(Event).
+
+-spec remote_tp(term(), logger:level(), kind(), map()) -> ok.
+remote_tp(Location, Level, Kind, Data) ->
+  Node = persistent_term:get(snabbkaffe_remote),
+  case rpc:call(Node, snabbkaffe, tp, [Location, Level, Kind, Data], infinity) of
+    ok -> ok;
+    {badrpc, {'EXIT', {Reason, _StackTrace}}} -> error(Reason)
+  end.
 
 -spec collect_trace() -> trace().
 collect_trace() ->
@@ -172,6 +203,13 @@ stop() ->
   snabbkaffe_sup:stop(),
   ok.
 
+%% @doc Forward traces from the remote node to the local node.
+-spec forward_trace(node()) -> ok.
+forward_trace(Node) ->
+  Self = node(),
+  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_remote, Self]),
+  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/4]).
+
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().
 events_of_kind(Kind, Events) when is_atom(Kind) ->
@@ -223,7 +261,7 @@ run(Config, Run, Check) ->
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
-  snabbkaffe_collector:tp('$trace_begin', #{}),
+  snabbkaffe_collector:tp(#{?snk_kind => '$trace_begin'}),
   try
     Return  = Run(),
     Trace   = collect_trace(Timeout),

@@ -23,7 +23,7 @@
         , get_stats/0
         , block_until/3
         , notify_on_event/3
-        , tp/2
+        , tp/1
         , push_stat/3
         ]).
 
@@ -58,11 +58,9 @@
 %%% API
 %%%===================================================================
 
--spec tp(snabbkaffe:kind(), map()) -> ok.
-tp(Kind, Event) ->
-  Event1 = Event #{ ts        => timestamp()
-                  , ?snk_kind => Kind
-                  },
+-spec tp(map()) -> ok.
+tp(Event) ->
+  Event1 = Event #{ts => timestamp()},
   logger:debug(Event1),
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
@@ -125,6 +123,7 @@ notify_on_event(Predicate, Timeout, Callback) ->
 %%%===================================================================
 
 init([]) ->
+  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/4),
   TS = timestamp(),
   BeginTrace = #{ ts        => TS
                 , ?snk_kind => '$trace_begin'
@@ -218,6 +217,7 @@ handle_info(_, State) ->
   {noreply, State}.
 
 terminate(_Reason, _State) ->
+  persistent_term:erase(snabbkaffe_tp_fun),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
