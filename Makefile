@@ -7,7 +7,7 @@ CONCUERROR_RUN := $(CONCUERROR) \
 
 .PHONY: compile
 compile:
-	rebar3 do dialyzer,eunit,ct,xref
+	rebar3 do dialyzer, eunit, ct --sname snk_main, xref
 
 concuerror = $(CONCUERROR_RUN) -f $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/test/concuerror_tests.beam -t $(1) || \
 	{ cat concuerror_report.txt; exit 1; }

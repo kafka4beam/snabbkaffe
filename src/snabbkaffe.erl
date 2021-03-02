@@ -22,6 +22,7 @@
 %% API exports
 -export([ tp/4
         , start_trace/0
+        , forward_trace/1
         , stop/0
         , collect_trace/0
         , collect_trace/1
@@ -62,6 +63,7 @@
 
 %% Internal exports:
 -export([ local_tp/4
+        , remote_tp/4
         ]).
 
 %%====================================================================
@@ -121,6 +123,14 @@ local_tp(Location, _Level, Kind, Data) ->
   Event = Data #{?snk_kind => Kind},
   snabbkaffe_nemesis:maybe_crash(Location, Event),
   snabbkaffe_collector:tp(Event).
+
+-spec remote_tp(term(), logger:level(), kind(), map()) -> ok.
+remote_tp(Location, Level, Kind, Data) ->
+  Node = persistent_term:get(snabbkaffe_remote),
+  case rpc:call(Node, snabbkaffe, tp, [Location, Level, Kind, Data], infinity) of
+    ok -> ok;
+    {badrpc, {'EXIT', {Reason, _StackTrace}}} -> error(Reason)
+  end.
 
 -spec collect_trace() -> trace().
 collect_trace() ->
@@ -187,6 +197,13 @@ start_trace() ->
 stop() ->
   snabbkaffe_sup:stop(),
   ok.
+
+%% @doc Forward traces from the remote node to the local node.
+-spec forward_trace(node()) -> ok.
+forward_trace(Node) ->
+  Self = node(),
+  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_remote, Self]),
+  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/4]).
 
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().
