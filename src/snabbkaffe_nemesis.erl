@@ -145,10 +145,6 @@ fix_crash(Ref) ->
 %% and respond with the crash reason if so.
 -spec maybe_crash(fault_key(), map()) -> ok.
 maybe_crash(Key, Data) ->
-  [{_, Faults}] = ets:lookup(?ERROR_TAB, ?SINGLETON_KEY),
-  %% Check if any of the injected errors have predicates matching my
-  %% data:
-  Fun = fun(#fault{predicate = P}) -> P(Data) end,
   [begin
      NewVal = ets:update_counter(?STATE_TAB, Key, {2, 1}, {Key, 0}),
      %% Run fault_scenario function to see if we need to crash this
@@ -163,7 +159,12 @@ maybe_crash(Key, Data) ->
          ok
      end
    end
-   || #fault{scenario = S, reason = R} <- lists:filter(Fun, Faults)],
+   || {_, Faults} <- lookup_singleton(?ERROR_TAB),
+      #fault{ scenario  = S
+            , reason    = R
+            , predicate = Pred
+            } <- Faults,
+      Pred(Data)],
   ok.
 
 %% @doc Inject delay into the system
@@ -180,14 +181,15 @@ inject_delay(DelayPredicate, ContinuePredicate) ->
 %% @doc Check if the trace point should be delayed.
 -spec maybe_delay(map()) -> ok.
 maybe_delay(Event) ->
-  [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
   [snabbkaffe_collector:block_until( fun(WU) -> ContP(Event, WU) end
                                    , infinity
                                    , infinity
                                    )
-   || #delay{ continue_predicate = ContP
+   || {_, Delays} <- lookup_singleton(?DELAY_TAB),
+      #delay{ continue_predicate = ContP
             , delay_predicate    = DelayP
-            } <- Delays, DelayP(Event)],
+            } <- Delays,
+      DelayP(Event)],
   ok.
 
 %%%===================================================================
@@ -285,3 +287,10 @@ terminate(_Reason, _State) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+-spec lookup_singleton(atom()) -> [{?SINGLETON_KEY, term()}].
+lookup_singleton(Table) ->
+  case whereis(?SERVER) of
+    undefined -> [];
+    _Pid      -> ets:lookup(Table, ?SINGLETON_KEY)
+  end.
