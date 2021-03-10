@@ -53,3 +53,7 @@ get_cfg_test() ->
   ?assertMatch(42, snabbkaffe:get_cfg([proper, foo], Cfg2, 42)),
   ?assertMatch(42, snabbkaffe:get_cfg([proper, timeout], Cfg3, 10)),
   ?assertMatch(42, snabbkaffe:get_cfg([proper, foo], Cfg3, 42)).
+
+tp_without_collector_test() ->
+  %% Test that ?tp macro works without starting the local collector
+  ?tp(foo, #{}).
