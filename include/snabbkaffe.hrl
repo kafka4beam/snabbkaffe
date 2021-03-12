@@ -8,6 +8,7 @@
 -endif. %% TEST
 
 -define(snk_kind, '$kind'). %% "$" will make kind field go first when maps are printed.
+-define(snk_meta, '~meta'). %% "~" will make meta field go last when maps are printed.
 
 -ifdef(SNK_COLLECTOR).
 
@@ -60,6 +61,12 @@
 
 -define(of_kind(KIND, TRACE),
         snabbkaffe:events_of_kind(KIND, TRACE)).
+
+-define(of_domain(DOMAIN, TRACE),
+        [E || E = #{?snk_meta := #{domain := DOMAIN}} <- TRACE]).
+
+-define(of_node(NODE, TRACE),
+        [E || E = #{?snk_meta := #{node := NODE}} <- TRACE]).
 
 -define(projection(FIELDS, TRACE),
         snabbkaffe:projection(FIELDS, TRACE)).

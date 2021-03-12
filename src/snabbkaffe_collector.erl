@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributers
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -129,7 +130,7 @@ notify_on_event(Predicate, Timeout, BackInTime, Callback) ->
 %%%===================================================================
 
 init([]) ->
-  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/4),
+  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/5),
   TS = timestamp(),
   BeginTrace = #{ ts        => TS
                 , ?snk_kind => '$trace_begin'

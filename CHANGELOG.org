@@ -1,0 +1,33 @@
+* 0.9.0
+** Features
+- Add =logger= process metadata to the trace events
+- Add =?of_domain= and =?of_node= macros
+
+* 0.8.2
+
+** Fixes
+- Fix execution of tracepoints in TEST profile while snabbkaffe collector is not running
+
+* 0.8.1
+** Breaking changes
+- Change return type of =?causality= and =?strict_causality= macros to boolean
+
+** Features
+- Introduce =?force_ordering= macro
+- Introduce support for distributed tracing. =snabbkaffe:forward_trace/1= function.
+
+** Fixes
+- Remove dependency on =bear=
+
+* 0.7.0
+** Breaking changes
+- Drop support for OTP releases below 21
+- Drop =hut= dependency, now in the release profile snabbkaffe always uses =kernel= logger
+
+** Features
+- Kind of the trace point now can be a string
+- Concuerror support
+
+** Fixes
+- =?projection_complete= and =?projection_is_subset= macros now support multiple fields
+- Allow usage of guards in the match patterns in all macros

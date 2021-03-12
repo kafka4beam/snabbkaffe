@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributers
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -62,8 +63,8 @@
         ]).
 
 %% Internal exports:
--export([ local_tp/4
-        , remote_tp/4
+-export([ local_tp/5
+        , remote_tp/5
         ]).
 
 %%====================================================================
@@ -105,6 +106,7 @@
 
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
+             , predicate2/0
              ]).
 
 %%====================================================================
@@ -118,24 +120,27 @@
 -spec tp(term(), logger:level(), kind(), map()) -> ok.
 -ifndef(CONCUERROR).
 tp(Location, Level, Kind, Data) ->
-  Fun = persistent_term:get(snabbkaffe_tp_fun, fun local_tp/4),
-  apply(Fun, [Location, Level, Kind, Data]).
+  Fun = persistent_term:get(snabbkaffe_tp_fun, fun local_tp/5),
+  apply(Fun, [Location, Level, Kind, Data, get_metadata()]).
 -else.
 tp(Location, Level, Kind, Data) ->
-  local_tp(Location, Level, Kind, Data).
+  local_tp(Location, Level, Kind, Data, get_metadata()).
 -endif. %% CONCUERROR
 
--spec local_tp(term(), logger:level(), kind(), map()) -> ok.
-local_tp(Location, _Level, Kind, Data) ->
-  Event = Data #{?snk_kind => Kind},
+-spec local_tp(term(), logger:level(), kind(), map(), map()) -> ok.
+local_tp(Location, _Level, Kind, Data, Metadata) ->
+  Event = Data #{ ?snk_kind => Kind
+                , ?snk_meta => Metadata
+                },
   snabbkaffe_nemesis:maybe_delay(Event),
   snabbkaffe_nemesis:maybe_crash(Location, Event),
   snabbkaffe_collector:tp(Event).
 
--spec remote_tp(term(), logger:level(), kind(), map()) -> ok.
-remote_tp(Location, Level, Kind, Data) ->
+-spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
+remote_tp(Location, Level, Kind, Data, Meta) ->
   Node = persistent_term:get(snabbkaffe_remote),
-  case rpc:call(Node, snabbkaffe, tp, [Location, Level, Kind, Data], infinity) of
+  %% TODO: replacing local_tp with tp will allow to diasy chain nodes, not sure if needed
+  case rpc:call(Node, snabbkaffe, local_tp, [Location, Level, Kind, Data, Meta], infinity) of
     ok -> ok;
     {badrpc, {'EXIT', {Reason, _StackTrace}}} -> error(Reason)
   end.
@@ -211,7 +216,7 @@ stop() ->
 forward_trace(Node) ->
   Self = node(),
   ok = rpc:call(Node, persistent_term, put, [snabbkaffe_remote, Self]),
-  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/4]).
+  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/5]).
 
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().
@@ -730,3 +735,10 @@ mean(Sum, N, []) ->
   Sum / N;
 mean(Sum, N, [X|Rest]) ->
   mean(Sum + X, N + 1, Rest).
+
+get_metadata() ->
+  Meta = case logger:get_process_metadata() of
+            undefined -> #{};
+            A -> A
+          end,
+  Meta #{node => node(), pid => self(), gl => group_leader()}.

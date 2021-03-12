@@ -2,6 +2,7 @@
 
 -compile(export_all).
 
+-include_lib("snabbkaffe/include/snabbkaffe.hrl").
 -include_lib("snabbkaffe/include/ct_boilerplate.hrl").
 
 %%====================================================================
@@ -64,6 +65,32 @@ t_remote_delay(Config) when is_list(Config) ->
                                   , Trace
                                   )),
          ?projection_complete(id, ?of_kind(bar, Trace), [1, 2])
+     end).
+
+t_remote_metadata(Config) when is_list(Config) ->
+  Remote = start_slave(snkremote),
+  ?check_trace(
+     begin
+       ?assertEqual(ok, rpc:call(Remote, remote_funs, remote_metadata, [], infinity))
+     end,
+     fun(_, Trace) ->
+         Events = ?of_domain([remote|_], Trace),
+         ?assertEqual(Events, ?of_node(Remote, Trace)),
+         ?assertMatch([ #{?snk_kind := foo, ?snk_meta := #{ node   := Remote
+                                                          , pid    := _
+                                                          , gl     := _
+                                                          , domain := [remote]
+                                                          , meta1  := foo
+                                                          , meta2  := bar
+                                                          }}
+                      , #{?snk_kind := bar, ?snk_meta := #{ node   := Remote
+                                                          , pid    := _
+                                                          , gl     := _
+                                                          , domain := [remote]
+                                                          , meta1  := foo
+                                                          , meta2  := bar
+                                                          }}
+                      ], Events)
      end).
 
 %%====================================================================
