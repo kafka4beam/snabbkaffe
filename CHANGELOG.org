@@ -1,4 +1,7 @@
 * 0.9.0
+** Breaking changes
+- Tracepoints without severity no longer appear in the release build as debug logs
+
 ** Features
 - Add =logger= process metadata to the trace events
 - Add =?of_domain= and =?of_node= macros

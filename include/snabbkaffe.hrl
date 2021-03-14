@@ -228,7 +228,7 @@
                               , line => ?LINE
                               })).
 
--define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
+-define(tp(KIND, EVT), ok).
 
 -define(maybe_crash(KIND, DATA), ok).
 
