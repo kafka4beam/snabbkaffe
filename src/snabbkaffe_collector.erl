@@ -25,7 +25,7 @@
         , block_until/3
         , notify_on_event/3
         , notify_on_event/4
-        , tp/2
+        , tp/3
         , push_stat/3
         ]).
 
@@ -60,10 +60,11 @@
 %%% API
 %%%===================================================================
 
--spec tp(logger:level(), map()) -> ok.
-tp(Level, Event) ->
+-spec tp(logger:level(), map(), logger:metadata()) -> ok.
+tp(Level, Event, Metadata) ->
   Event1 = Event #{ts => timestamp()},
-  logger:log(Level, Event1),
+  logger:log(Level, Event1, Metadata),
+  EventAndMeta = Event1 #{?snk_meta => Metadata},
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
   %% doesn't guarantee order of messages from different processes. So
@@ -76,7 +77,7 @@ tp(Level, Event) ->
   %% with `--instant_delivery true` by default.
   %%
   %% Above reasoning is only valid for local processes.
-  gen_server:cast(?SERVER, {trace, Event1}).
+  gen_server:cast(?SERVER, {trace, EventAndMeta}).
 
 -spec push_stat(snabbkaffe:metric(), number() | undefined, number()) -> ok.
 push_stat(Metric, X, Y) ->

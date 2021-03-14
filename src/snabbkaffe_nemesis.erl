@@ -156,6 +156,7 @@ maybe_crash(Key, Data) ->
                                 , Data#{ crash_kind => Key
                                        , ?snk_kind  => snabbkaffe_crash
                                        }
+                                , #{}
                                 ),
          error(R);
        false ->
