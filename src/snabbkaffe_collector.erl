@@ -61,10 +61,10 @@
 %%%===================================================================
 
 -spec tp(logger:level(), map(), logger:metadata()) -> ok.
-tp(Level, Event, Metadata) ->
-  Event1 = Event #{ts => timestamp()},
-  logger:log(Level, Event1, Metadata),
-  EventAndMeta = Event1 #{?snk_meta => Metadata},
+tp(Level, Event, Metadata0) ->
+  Metadata = Metadata0 #{time => timestamp()},
+  logger:log(Level, Event, Metadata),
+  EventAndMeta = Event #{?snk_meta => Metadata},
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
   %% doesn't guarantee order of messages from different processes. So
@@ -200,7 +200,7 @@ handle_info(Event = {flush, To, Timeout}, State) ->
   Finished =
     if Timeout > 0 ->
         Dt = erlang:convert_time_unit( timestamp() - LastEventTs
-                                     , native
+                                     , microsecond
                                      , millisecond
                                      ),
         Dt >= Timeout;
@@ -211,7 +211,7 @@ handle_info(Event = {flush, To, Timeout}, State) ->
     end,
   if Finished ->
       TraceEnd = #{ ?snk_kind => '$trace_end'
-                  , ts        => LastEventTs
+                  , ?snk_meta => #{time => LastEventTs}
                   },
       Result = lists:reverse([TraceEnd|Trace]),
       gen_server:reply(To, {ok, Result}),
@@ -267,7 +267,7 @@ maybe_subscribe(Predicate, Timeout, Infimum, AsyncAction, State0) ->
   try
     %% 1. Search in the past events
     [case Evt of
-       #{ts := Ts} when Ts > Infimum ->
+       #{?snk_meta := #{time := TS}} when TS > Infimum ->
          case Predicate(Evt) of
            true ->
              throw({found, Evt});
@@ -310,9 +310,9 @@ infimum(infinity) ->
 infimum(BackInTime0) ->
   BackInTime = erlang:convert_time_unit( BackInTime0
                                        , millisecond
-                                       , native
+                                       , microsecond
                                        ),
-  erlang:monotonic_time() - BackInTime.
+  timestamp() - BackInTime.
 -else.
 infimum(infinity) ->
   beginning_of_times();
@@ -331,7 +331,7 @@ cancel_timer(TRef) ->
 -spec timestamp() -> integer().
 -ifndef(CONCUERROR).
 timestamp() ->
-  erlang:monotonic_time().
+  erlang:monotonic_time(microsecond).
 -else.
 timestamp() ->
   -1.
@@ -340,7 +340,10 @@ timestamp() ->
 -spec beginning_of_times() -> integer().
 -ifndef(CONCUERROR).
 beginning_of_times() ->
-  erlang:system_info(start_time).
+  erlang:convert_time_unit( erlang:system_info(start_time)
+                          , native
+                          , microsecond
+                          ).
 -else.
 beginning_of_times() ->
   -2.

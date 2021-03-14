@@ -3,8 +3,10 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("snabbkaffe.hrl").
 
--define(p(A, B), {pair, #{ts => A}, #{ts => B}}).
--define(s(A), {singleton, #{ts => A}}).
+-define(meta(TS), ?snk_meta => #{time => TS}).
+
+-define(p(A, B), {pair, #{?meta(A)}, #{?meta(B)}}).
+-define(s(A), {singleton, #{?meta(A)}}).
 
 -define(matchDepth(N, L),
         ?assertMatch(N, ?pair_max_depth(L))).

@@ -234,7 +234,7 @@ projection(Fields, Trace) ->
 
 -spec erase_timestamps(trace()) -> trace().
 erase_timestamps(Trace) ->
-  [maps:without([ts], I) || I <- Trace].
+  [I #{?snk_meta => maps:without([time], maps:get(?snk_meta, I, #{}))} || I <- Trace].
 
 %% @doc Find pairs of complimentary events
 -spec find_pairs( boolean()
@@ -513,9 +513,9 @@ projection_is_subset(Fields, Trace, Expected) ->
 -spec pair_max_depth([maybe_pair()]) -> non_neg_integer().
 pair_max_depth(Pairs) ->
   TagPair =
-    fun({pair, #{ts := T1}, #{ts := T2}}) ->
+    fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
         [{T1, 1}, {T2, -1}];
-       ({singleton, #{ts := T}}) ->
+       ({singleton, #{?snk_meta := #{time := T}}}) ->
         [{T, 1}]
     end,
   L0 = lists:flatmap(TagPair, Pairs),
@@ -702,9 +702,9 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
   end.
 
 transform_stats(Data) ->
-  Fun = fun({pair, #{ts := T1}, #{ts := T2}}) ->
+  Fun = fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
             Dt = erlang:convert_time_unit( T2 - T1
-                                         , native
+                                         , microsecond
                                          , millisecond
                                          ),
             {true, Dt * 1.0e-6};
