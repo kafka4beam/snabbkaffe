@@ -5,6 +5,22 @@
 
 -define(foo(A), #{foo => A, bar => bar, baz => baz}).
 
+tp_printouts_test() ->
+  ?check_trace(
+     begin
+       ?tp(warning, "This is a warning tracepoint",
+           #{ key1 => value1
+            , key2 => "Value 2"
+            }),
+       ?tp(notice, "This is a notice tracepoint",
+           #{ key1 => value1
+            , key2 => "Value 2"
+            })
+     end,
+     fun(_, _) ->
+         true
+     end).
+
 projection_1_test() ->
   ?assertMatch( [1, 2, 3]
               , snabbkaffe:projection( foo

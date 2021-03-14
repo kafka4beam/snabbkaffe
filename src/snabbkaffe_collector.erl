@@ -25,7 +25,7 @@
         , block_until/3
         , notify_on_event/3
         , notify_on_event/4
-        , tp/1
+        , tp/2
         , push_stat/3
         ]).
 
@@ -60,10 +60,10 @@
 %%% API
 %%%===================================================================
 
--spec tp(map()) -> ok.
-tp(Event) ->
+-spec tp(logger:level(), map()) -> ok.
+tp(Level, Event) ->
   Event1 = Event #{ts => timestamp()},
-  logger:debug(Event1),
+  logger:log(Level, Event1),
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
   %% doesn't guarantee order of messages from different processes. So

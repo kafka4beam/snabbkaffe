@@ -1,10 +1,15 @@
 * 0.9.0
 ** Breaking changes
-- Tracepoints without severity no longer appear in the release build as debug logs
+- Tracepoints without severity no longer appear in the release build
+  as debug logs. Old behavior can be emulated by explicitly specifying
+  debug severity using =?tp(debug, Kind, Data)= macro
+- Timestamp field (=tp=) has been moved to the metadata and renamed to
+  =time=. Its resolution has been changed to microsecond.
 
 ** Features
 - Add =logger= process metadata to the trace events
 - Add =?of_domain= and =?of_node= macros
+- Severity level of tracepoints affects severity of logs in the debug mode
 
 * 0.8.2
 

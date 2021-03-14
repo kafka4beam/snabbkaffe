@@ -128,13 +128,13 @@ tp(Location, Level, Kind, Data) ->
 -endif. %% CONCUERROR
 
 -spec local_tp(term(), logger:level(), kind(), map(), map()) -> ok.
-local_tp(Location, _Level, Kind, Data, Metadata) ->
+local_tp(Location, Level, Kind, Data, Metadata) ->
   Event = Data #{ ?snk_kind => Kind
                 , ?snk_meta => Metadata
                 },
   snabbkaffe_nemesis:maybe_delay(Event),
   snabbkaffe_nemesis:maybe_crash(Location, Event),
-  snabbkaffe_collector:tp(Event).
+  snabbkaffe_collector:tp(Level, Event).
 
 -spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
 remote_tp(Location, Level, Kind, Data, Meta) ->
@@ -269,7 +269,7 @@ run(Config, Run, Check) ->
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
-  snabbkaffe_collector:tp(#{?snk_kind => '$trace_begin'}),
+  snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}),
   try
     Return  = Run(),
     Trace   = collect_trace(Timeout),
