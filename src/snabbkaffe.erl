@@ -14,10 +14,6 @@
 %% limitations under the License.
 -module(snabbkaffe).
 
--ifndef(SNK_COLLECTOR).
--define(SNK_COLLECTOR, true).
--endif.
-
 -include("snabbkaffe_internal.hrl").
 
 %% API exports
@@ -214,8 +210,7 @@ stop() ->
 -spec forward_trace(node()) -> ok.
 forward_trace(Node) ->
   Self = node(),
-  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_remote, Self]),
-  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/5]).
+  ok = rpc:call(Node, snabbkaffe_collector, do_forward_trace, [Self]).
 
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().

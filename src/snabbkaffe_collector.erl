@@ -33,6 +33,10 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+%% Internal exports:
+-export([ do_forward_trace/1
+        ]).
+
 -export_type([async_action/0]).
 
 -define(SERVER, ?MODULE).
@@ -348,3 +352,13 @@ beginning_of_times() ->
 beginning_of_times() ->
   -2.
 -endif.
+
+%% @private Internal export
+-spec do_forward_trace(node()) -> ok.
+do_forward_trace(Node) ->
+  ok = persistent_term:put(snabbkaffe_remote, Node),
+  ok = persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/5),
+  ?tp(notice, '$snabbkaffe_remote_attach',
+      #{ parent => Node
+       , node   => node()
+       }).
