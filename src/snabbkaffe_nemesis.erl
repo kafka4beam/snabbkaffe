@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -151,9 +152,12 @@ maybe_crash(Key, Data) ->
      %% time:
      case S(NewVal) of
        true ->
-         snabbkaffe_collector:tp(Data#{ crash_kind => Key
-                                      , ?snk_kind  => snabbkaffe_crash
-                                      }),
+         snabbkaffe_collector:tp( debug
+                                , Data#{ crash_kind => Key
+                                       , ?snk_kind  => snabbkaffe_crash
+                                       }
+                                , #{}
+                                ),
          error(R);
        false ->
          ok

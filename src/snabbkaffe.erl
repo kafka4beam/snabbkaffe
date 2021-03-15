@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -12,10 +13,6 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 -module(snabbkaffe).
-
--ifndef(SNK_COLLECTOR).
--define(SNK_COLLECTOR, true).
--endif.
 
 -include("snabbkaffe_internal.hrl").
 
@@ -62,8 +59,8 @@
         ]).
 
 %% Internal exports:
--export([ local_tp/4
-        , remote_tp/4
+-export([ local_tp/5
+        , remote_tp/5
         ]).
 
 %%====================================================================
@@ -105,6 +102,7 @@
 
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
+             , predicate2/0
              ]).
 
 %%====================================================================
@@ -118,24 +116,26 @@
 -spec tp(term(), logger:level(), kind(), map()) -> ok.
 -ifndef(CONCUERROR).
 tp(Location, Level, Kind, Data) ->
-  Fun = persistent_term:get(snabbkaffe_tp_fun, fun local_tp/4),
-  apply(Fun, [Location, Level, Kind, Data]).
+  Fun = persistent_term:get(snabbkaffe_tp_fun, fun local_tp/5),
+  apply(Fun, [Location, Level, Kind, Data, get_metadata()]).
 -else.
 tp(Location, Level, Kind, Data) ->
-  local_tp(Location, Level, Kind, Data).
+  local_tp(Location, Level, Kind, Data, get_metadata()).
 -endif. %% CONCUERROR
 
--spec local_tp(term(), logger:level(), kind(), map()) -> ok.
-local_tp(Location, _Level, Kind, Data) ->
+-spec local_tp(term(), logger:level(), kind(), map(), map()) -> ok.
+local_tp(Location, Level, Kind, Data, Metadata) ->
   Event = Data #{?snk_kind => Kind},
-  snabbkaffe_nemesis:maybe_delay(Event),
-  snabbkaffe_nemesis:maybe_crash(Location, Event),
-  snabbkaffe_collector:tp(Event).
+  EventAndMeta = Event #{ ?snk_meta => Metadata },
+  snabbkaffe_nemesis:maybe_delay(EventAndMeta),
+  snabbkaffe_nemesis:maybe_crash(Location, EventAndMeta),
+  snabbkaffe_collector:tp(Level, Event, Metadata).
 
--spec remote_tp(term(), logger:level(), kind(), map()) -> ok.
-remote_tp(Location, Level, Kind, Data) ->
+-spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
+remote_tp(Location, Level, Kind, Data, Meta) ->
   Node = persistent_term:get(snabbkaffe_remote),
-  case rpc:call(Node, snabbkaffe, tp, [Location, Level, Kind, Data], infinity) of
+  %% TODO: replacing local_tp with tp will allow to diasy chain nodes, not sure if needed
+  case rpc:call(Node, snabbkaffe, local_tp, [Location, Level, Kind, Data, Meta], infinity) of
     ok -> ok;
     {badrpc, {'EXIT', {Reason, _StackTrace}}} -> error(Reason)
   end.
@@ -210,8 +210,7 @@ stop() ->
 -spec forward_trace(node()) -> ok.
 forward_trace(Node) ->
   Self = node(),
-  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_remote, Self]),
-  ok = rpc:call(Node, persistent_term, put, [snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/4]).
+  ok = rpc:call(Node, snabbkaffe_collector, do_forward_trace, [Self]).
 
 %% @doc Extract events of certain kind(s) from the trace
 -spec events_of_kind(kind() | [kind()], trace()) -> trace().
@@ -230,7 +229,7 @@ projection(Fields, Trace) ->
 
 -spec erase_timestamps(trace()) -> trace().
 erase_timestamps(Trace) ->
-  [maps:without([ts], I) || I <- Trace].
+  [I #{?snk_meta => maps:without([time], maps:get(?snk_meta, I, #{}))} || I <- Trace].
 
 %% @doc Find pairs of complimentary events
 -spec find_pairs( boolean()
@@ -264,7 +263,7 @@ run(Config, Run, Check) ->
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
-  snabbkaffe_collector:tp(#{?snk_kind => '$trace_begin'}),
+  snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
   try
     Return  = Run(),
     Trace   = collect_trace(Timeout),
@@ -509,9 +508,9 @@ projection_is_subset(Fields, Trace, Expected) ->
 -spec pair_max_depth([maybe_pair()]) -> non_neg_integer().
 pair_max_depth(Pairs) ->
   TagPair =
-    fun({pair, #{ts := T1}, #{ts := T2}}) ->
+    fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
         [{T1, 1}, {T2, -1}];
-       ({singleton, #{ts := T}}) ->
+       ({singleton, #{?snk_meta := #{time := T}}}) ->
         [{T, 1}]
     end,
   L0 = lists:flatmap(TagPair, Pairs),
@@ -698,9 +697,9 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
   end.
 
 transform_stats(Data) ->
-  Fun = fun({pair, #{ts := T1}, #{ts := T2}}) ->
+  Fun = fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
             Dt = erlang:convert_time_unit( T2 - T1
-                                         , native
+                                         , microsecond
                                          , millisecond
                                          ),
             {true, Dt * 1.0e-6};
@@ -730,3 +729,10 @@ mean(Sum, N, []) ->
   Sum / N;
 mean(Sum, N, [X|Rest]) ->
   mean(Sum + X, N + 1, Rest).
+
+get_metadata() ->
+  Meta = case logger:get_process_metadata() of
+            undefined -> #{};
+            A -> A
+          end,
+  Meta #{node => node(), pid => self(), gl => group_leader()}.

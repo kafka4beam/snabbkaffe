@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.

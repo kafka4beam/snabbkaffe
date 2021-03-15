@@ -321,3 +321,14 @@ wait_async_action_prop() ->
 
 t_wait_async_action(Config) when is_list(Config) ->
   ?run_prop(Config, wait_async_action_prop()).
+
+t_metadata(Config) when is_list(Config) ->
+  ?check_trace(
+     begin
+       ?tp(foo, #{}),
+       logger:set_process_metadata(#{domain => [test]}),
+       ?tp(bar, #{})
+     end,
+     fun(_, Trace) ->
+         ?assertMatch([#{?snk_kind := bar}], ?of_domain([test], Trace))
+     end).

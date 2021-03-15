@@ -1,4 +1,5 @@
 %% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -24,13 +25,17 @@
         , block_until/3
         , notify_on_event/3
         , notify_on_event/4
-        , tp/1
+        , tp/3
         , push_stat/3
         ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
+
+%% Internal exports:
+-export([ do_forward_trace/1
+        ]).
 
 -export_type([async_action/0]).
 
@@ -59,10 +64,11 @@
 %%% API
 %%%===================================================================
 
--spec tp(map()) -> ok.
-tp(Event) ->
-  Event1 = Event #{ts => timestamp()},
-  logger:debug(Event1),
+-spec tp(logger:level(), map(), logger:metadata()) -> ok.
+tp(Level, Event, Metadata0) ->
+  Metadata = Metadata0 #{time => timestamp()},
+  logger:log(Level, Event, Metadata),
+  EventAndMeta = Event #{?snk_meta => Metadata},
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
   %% doesn't guarantee order of messages from different processes. So
@@ -75,7 +81,7 @@ tp(Event) ->
   %% with `--instant_delivery true` by default.
   %%
   %% Above reasoning is only valid for local processes.
-  gen_server:cast(?SERVER, {trace, Event1}).
+  gen_server:cast(?SERVER, {trace, EventAndMeta}).
 
 -spec push_stat(snabbkaffe:metric(), number() | undefined, number()) -> ok.
 push_stat(Metric, X, Y) ->
@@ -129,7 +135,7 @@ notify_on_event(Predicate, Timeout, BackInTime, Callback) ->
 %%%===================================================================
 
 init([]) ->
-  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/4),
+  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/5),
   TS = timestamp(),
   BeginTrace = #{ ts        => TS
                 , ?snk_kind => '$trace_begin'
@@ -198,7 +204,7 @@ handle_info(Event = {flush, To, Timeout}, State) ->
   Finished =
     if Timeout > 0 ->
         Dt = erlang:convert_time_unit( timestamp() - LastEventTs
-                                     , native
+                                     , microsecond
                                      , millisecond
                                      ),
         Dt >= Timeout;
@@ -209,7 +215,7 @@ handle_info(Event = {flush, To, Timeout}, State) ->
     end,
   if Finished ->
       TraceEnd = #{ ?snk_kind => '$trace_end'
-                  , ts        => LastEventTs
+                  , ?snk_meta => #{time => LastEventTs}
                   },
       Result = lists:reverse([TraceEnd|Trace]),
       gen_server:reply(To, {ok, Result}),
@@ -265,7 +271,7 @@ maybe_subscribe(Predicate, Timeout, Infimum, AsyncAction, State0) ->
   try
     %% 1. Search in the past events
     [case Evt of
-       #{ts := Ts} when Ts > Infimum ->
+       #{?snk_meta := #{time := TS}} when TS > Infimum ->
          case Predicate(Evt) of
            true ->
              throw({found, Evt});
@@ -308,9 +314,9 @@ infimum(infinity) ->
 infimum(BackInTime0) ->
   BackInTime = erlang:convert_time_unit( BackInTime0
                                        , millisecond
-                                       , native
+                                       , microsecond
                                        ),
-  erlang:monotonic_time() - BackInTime.
+  timestamp() - BackInTime.
 -else.
 infimum(infinity) ->
   beginning_of_times();
@@ -329,7 +335,7 @@ cancel_timer(TRef) ->
 -spec timestamp() -> integer().
 -ifndef(CONCUERROR).
 timestamp() ->
-  erlang:monotonic_time().
+  erlang:monotonic_time(microsecond).
 -else.
 timestamp() ->
   -1.
@@ -338,8 +344,21 @@ timestamp() ->
 -spec beginning_of_times() -> integer().
 -ifndef(CONCUERROR).
 beginning_of_times() ->
-  erlang:system_info(start_time).
+  erlang:convert_time_unit( erlang:system_info(start_time)
+                          , native
+                          , microsecond
+                          ).
 -else.
 beginning_of_times() ->
   -2.
 -endif.
+
+%% @private Internal export
+-spec do_forward_trace(node()) -> ok.
+do_forward_trace(Node) ->
+  ok = persistent_term:put(snabbkaffe_remote, Node),
+  ok = persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/5),
+  ?tp(notice, '$snabbkaffe_remote_attach',
+      #{ parent => Node
+       , node   => node()
+       }).

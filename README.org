@@ -90,6 +90,18 @@ Select events of certain kind:
 ?of_kind(foo, Trace)
 #+END_SRC
 
+Select events from a certain node:
+
+#+BEGIN_SRC erlang
+?of_node('foo@localhost', Trace)
+#+END_SRC
+
+Select events from a certain logger domain:
+
+#+BEGIN_SRC erlang
+?of_domain([foo, bar|_], Trace)
+#+END_SRC
+
 Extract values of a certain event field(s) to a list:
 
 #+BEGIN_SRC erlang

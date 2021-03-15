@@ -25,3 +25,11 @@ remote_delay() ->
         ?tp(bar, #{id => 2})
     end),
   ok.
+
+remote_metadata() ->
+  logger:update_process_metadata(#{ domain => [remote]
+                                  , meta1 => foo
+                                  , meta2 => bar
+                                  }),
+  ?tp(foo, #{}),
+  ?tp(bar, #{}).

@@ -1,3 +1,7 @@
+-ifndef(SNK_COLLECTOR).
+-define(SNK_COLLECTOR, true).
+-endif.
+
 -include("snabbkaffe.hrl").
 
 -ifdef(CONCUERROR).

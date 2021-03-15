@@ -3,6 +3,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("snabbkaffe.hrl").
 
+-define(meta(TS), ?snk_meta => #{time => TS}).
+
 -define(valid(L),
         ?assertMatch(true, snabbkaffe:unique(L))).
 
@@ -13,13 +15,13 @@
 
 unique_succ_test() ->
   ?valid([]),
-  ?valid([ #{foo => 1, ts => 1}
-         , #{bar => 1, ts => 2}
-         , #{bar => 2, ts => 2}
+  ?valid([ #{foo => 1, ?meta(1)}
+         , #{bar => 1, ?meta(2)}
+         , #{bar => 2, ?meta(2)}
          ]).
 
 unique_fail_test() ->
-  ?invalid([ #{foo => 1, ts => 1}
-           , #{bar => 1, ts => 2}
-           , #{foo => 1, ts => 2}
+  ?invalid([ #{foo => 1, ?meta(1)}
+           , #{bar => 1, ?meta(2)}
+           , #{foo => 1, ?meta(2)}
            ]).

@@ -109,6 +109,9 @@ wcwg_succ_test() ->
 
 wcwg_fail_test() ->
   ?assertError( {panic, _}
+              , ?WCWG([?foo(3), ?bar(1)])
+              ),
+  ?assertError( {panic, _}
               , ?WCWG([?foo(2), ?bar(1)])
               ).
 
