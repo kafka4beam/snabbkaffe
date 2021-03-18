@@ -666,10 +666,8 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
     end,
   Buckets0 = lists:foldl(PushBucket, #{}, Datapoints),
   BucketStats =
-    fun({Key, Vals}) when length(Vals) > 5 ->
-        {true, {Key, mean(Vals)}};
-       (_) ->
-        false
+    fun({Key, Vals}) ->
+        {true, {Key, mean(Vals)}}
     end,
   Buckets = lists:filtermap( BucketStats
                            , lists:keysort(1, maps:to_list(Buckets0))
@@ -681,7 +679,7 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
     fun({Key, Mean}) ->
         io_lib:format("~10b ~e~n", [Key, Mean])
     end,
-  StatsStr = [ "Statisitics of ", atom_to_list(MetricName), $\n
+  StatsStr = [ "Statisitics of ", io_lib:format("~w", [MetricName]), $\n
              , asciiart:render(Plot)
              , "\n         N    avg\n"
              , [BucketStatsToString(I) || I <- Buckets]
