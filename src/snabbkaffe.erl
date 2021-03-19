@@ -116,7 +116,7 @@
 -spec tp(term(), logger:level(), kind(), map()) -> ok.
 -ifndef(CONCUERROR).
 tp(Location, Level, Kind, Data) ->
-  Fun = persistent_term:get(snabbkaffe_tp_fun, fun local_tp/5),
+  Fun = persistent_term:get(?PT_TP_FUN, fun local_tp/5),
   apply(Fun, [Location, Level, Kind, Data, get_metadata()]).
 -else.
 tp(Location, Level, Kind, Data) ->
@@ -133,7 +133,7 @@ local_tp(Location, Level, Kind, Data, Metadata) ->
 
 -spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
 remote_tp(Location, Level, Kind, Data, Meta) ->
-  Node = persistent_term:get(snabbkaffe_remote),
+  Node = persistent_term:get(?PT_REMOTE),
   %% TODO: replacing local_tp with tp will allow to diasy chain nodes, not sure if needed
   case rpc:call(Node, snabbkaffe, local_tp, [Location, Level, Kind, Data, Meta], infinity) of
     ok -> ok;
@@ -427,7 +427,7 @@ push_stat(Metric, Num) ->
 
 -spec push_stat(metric(), number() | undefined, number()) -> ok.
 push_stat(Metric, X, Y) ->
-  snabbkaffe_collector:push_stat(Metric, X, Y).
+  maybe_rpc(snabbkaffe_collector, push_stat, [Metric, X, Y]).
 
 -spec push_stats(metric(), number(), [maybe_pair()] | number()) -> ok.
 push_stats(Metric, Bucket, Pairs) ->
@@ -645,7 +645,7 @@ analyze_metric(MetricName, DataPoints = [N|_]) when is_number(N) ->
   %% This is a simple metric:
   Mean = mean(DataPoints),
   logger:notice("-------------------------------~n"
-                "Mean ~p: ~p~n",
+                "Mean ~p: ~.5f~n",
                 [MetricName, Mean]);
 analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
   %% This "clustering" is not scientific at all
@@ -720,13 +720,8 @@ splitwith_(_Pred, [], Taken) ->
 
 mean([]) ->
   0;
-mean([X|Rest]) ->
-  mean(X, 1, Rest).
-
-mean(Sum, N, []) ->
-  Sum / N;
-mean(Sum, N, [X|Rest]) ->
-  mean(Sum + X, N + 1, Rest).
+mean(L = [_|_]) ->
+  lists:sum(L) / length(L).
 
 get_metadata() ->
   Meta = case logger:get_process_metadata() of
@@ -734,3 +729,10 @@ get_metadata() ->
             A -> A
           end,
   Meta #{node => node(), pid => self(), gl => group_leader()}.
+
+-spec maybe_rpc(module(), _Function :: atom(), _Args :: list()) -> term().
+maybe_rpc(M, F, A) ->
+  case persistent_term:get(?PT_REMOTE, undefined) of
+    undefined -> apply(M, F, A);
+    Remote    -> rpc:call(Remote, M, F, A)
+  end.

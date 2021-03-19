@@ -98,6 +98,16 @@ t_remote_metadata(Config) when is_list(Config) ->
                       ], Events)
      end).
 
+t_remote_stats(Config) when is_list(Config) ->
+  Remote = start_slave(snkremote),
+  ?check_trace(
+     begin
+       ?assertMatch(ok, rpc:call(Remote, remote_funs, remote_stats, [], infinity))
+     end,
+     fun(_, _) ->
+         ?assertMatch(#{{foo, 1} := [{1, 1}]}, snabbkaffe:get_stats())
+     end).
+
 %%====================================================================
 %% Internal functions
 %%====================================================================

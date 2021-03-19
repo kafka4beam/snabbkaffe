@@ -135,7 +135,7 @@ notify_on_event(Predicate, Timeout, BackInTime, Callback) ->
 %%%===================================================================
 
 init([]) ->
-  persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:local_tp/5),
+  persistent_term:put(?PT_TP_FUN, fun snabbkaffe:local_tp/5),
   TS = timestamp(),
   BeginTrace = #{ ts        => TS
                 , ?snk_kind => '$trace_begin'
@@ -228,7 +228,7 @@ handle_info(_, State) ->
   {noreply, State}.
 
 terminate(_Reason, _State) ->
-  persistent_term:erase(snabbkaffe_tp_fun),
+  persistent_term:erase(?PT_TP_FUN),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -356,8 +356,8 @@ beginning_of_times() ->
 %% @private Internal export
 -spec do_forward_trace(node()) -> ok.
 do_forward_trace(Node) ->
-  ok = persistent_term:put(snabbkaffe_remote, Node),
-  ok = persistent_term:put(snabbkaffe_tp_fun, fun snabbkaffe:remote_tp/5),
+  ok = persistent_term:put(?PT_REMOTE, Node),
+  ok = persistent_term:put(?PT_TP_FUN, fun snabbkaffe:remote_tp/5),
   ?tp(notice, '$snabbkaffe_remote_attach',
       #{ parent => Node
        , node   => node()

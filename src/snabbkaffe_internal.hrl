@@ -17,3 +17,6 @@
 -define(BIND_STACKTRACE(V),).
 -define(GET_STACKTRACE(V), V = erlang:get_stacktrace()).
 -endif.
+
+-define(PT_TP_FUN, snabbkaffe_tp_fun).
+-define(PT_REMOTE, snabbkaffe_remote).

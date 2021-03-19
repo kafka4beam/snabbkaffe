@@ -1,3 +1,11 @@
+* 0.9.1
+** Features
+- Any term can be used as metric name
+- snabbkaffe:push_stat work on remote nodes
+
+** Fixes
+- Don't filter out metrics that have less than 5 samples
+
 * 0.9.0
 ** Breaking changes
 - Tracepoints without severity no longer appear in the release build
