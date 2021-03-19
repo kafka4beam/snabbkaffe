@@ -33,3 +33,6 @@ remote_metadata() ->
                                   }),
   ?tp(foo, #{}),
   ?tp(bar, #{}).
+
+remote_stats() ->
+  snabbkaffe:push_stat({foo, 1}, 1, 1).
