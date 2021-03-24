@@ -281,7 +281,7 @@ the events:
 #+END_SRC
 
 This will cause the process that tries to produce an event of kind
-=foo= to wait for another process to produce the event of kind =bar=.
+=bar= to wait for another process to produce the event of kind =foo=.
 
 ** Declarative fault injection
 
