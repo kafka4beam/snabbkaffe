@@ -441,6 +441,7 @@ push_stats(Metric, Pairs) ->
                , transform_stats(Pairs)
                ).
 
+-spec get_stats() -> #{snabbkaffe:metric() => snabbkaffe_collector:datapoints()}.
 get_stats() ->
   {ok, Stats} = gen_server:call(snabbkaffe_collector, get_stats, infinity),
   Stats.
