@@ -60,6 +60,24 @@ t_kind_as_string(_Config) when is_list(_Config) ->
          ?assertMatch([_, _], ?of_kind(["event1", "event2"], Trace))
      end).
 
+t_span(_Config) when is_list(_Config) ->
+  ?check_trace(
+     begin
+       ?tp_span(outer_kind, #{foo => 1},
+                begin
+                  ?tp(inner_kind, #{}),
+                  42
+                end)
+     end,
+     fun(_Ret, Trace) ->
+         ?assertMatch( [ #{?snk_kind := outer_kind, foo := 1, ?snk_span := start}
+                       , #{?snk_kind := inner_kind}
+                       , #{?snk_kind := outer_kind, foo := 1, ?snk_span := {complete, 42}}
+                       ]
+                     , ?of_kind([outer_kind, inner_kind], Trace)
+                     )
+     end).
+
 prop_async_collect() ->
   ?FORALL(
      {MaxWaitTime, Events},

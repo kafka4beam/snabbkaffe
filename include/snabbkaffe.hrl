@@ -9,6 +9,7 @@
 
 -define(snk_kind, '$kind'). %% "$" will make kind field go first when maps are printed.
 -define(snk_meta, '~meta'). %% "~" will make meta field go last when maps are printed.
+-define(snk_span, '$span').
 
 -ifdef(SNK_COLLECTOR).
 
@@ -58,6 +59,14 @@
         snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).
 
 -define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
+
+-define(tp_span(KIND, DATA, CODE),
+        (fun() ->
+             ?tp(KIND, DATA #{?snk_span => start}),
+             __SnkRet = CODE,
+             ?tp(KIND, DATA #{?snk_span => {complete,  __SnkRet}}),
+             __SnkRet
+         end)()).
 
 -define(of_kind(KIND, TRACE),
         snabbkaffe:events_of_kind(KIND, TRACE)).
@@ -221,6 +230,9 @@
         ?inject_crash(PATTERN, STRATEGY, notmyday)).
 
 -else. %% SNK_COLLECTOR
+
+-define(tp_span(KIND, DATA, CODE),
+        CODE).
 
 -define(tp(LEVEL, KIND, EVT),
         logger:log(LEVEL, EVT#{ ?snk_kind => KIND

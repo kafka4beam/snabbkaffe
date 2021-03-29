@@ -1,3 +1,15 @@
+* 0.10.0
+** Breaking changes
+- =snabbkaffe:strictly_increasing= function returns false when the
+  list is empty
+
+** Features
+- Add =?tp_span= macro that wraps around a piece of code and emits
+  trance events when entering and completing the it
+
+** Fixes
+- Fix type specs
+
 * 0.9.1
 ** Features
 - Any term can be used as metric name
