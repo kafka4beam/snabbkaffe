@@ -524,7 +524,7 @@ pair_max_depth(Pairs) ->
   {_, Max} = lists:foldl(CalcDepth, {0, 0}, L),
   Max.
 
--spec strictly_increasing(list()) -> true.
+-spec strictly_increasing(list()) -> boolean().
 strictly_increasing(L) ->
   case L of
     [Init|Rest] ->
@@ -540,7 +540,7 @@ strictly_increasing(L) ->
       lists:foldl(Fun, Init, Rest),
       true;
     [] ->
-      true
+      false
   end.
 
 %%====================================================================

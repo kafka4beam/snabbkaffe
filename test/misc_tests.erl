@@ -34,7 +34,7 @@ projection_2_test() ->
                                      )).
 
 strictly_increasing_test() ->
-  ?assertMatch( true
+  ?assertMatch( false
               , snabbkaffe:strictly_increasing([])
               ),
   ?assertMatch( true
