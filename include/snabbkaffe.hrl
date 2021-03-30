@@ -232,7 +232,9 @@
 -else. %% SNK_COLLECTOR
 
 -define(tp_span(KIND, DATA, CODE),
-        CODE).
+        (fun() ->
+             CODE
+         end)()).
 
 -define(tp(LEVEL, KIND, EVT),
         logger:log(LEVEL, EVT#{ ?snk_kind => KIND
