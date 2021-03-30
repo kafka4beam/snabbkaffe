@@ -524,6 +524,15 @@ pair_max_depth(Pairs) ->
   {_, Max} = lists:foldl(CalcDepth, {0, 0}, L),
   Max.
 
+%% @doc Throws an exception when elements of the list are not strictly
+%% increasing. Otherwise, returns `true' if the list is non-empty, and
+%% `false' when it is empty.
+%%
+%% Example:
+%% ```
+%% SeqNums = ?projection(sequence_number, ?of_kind(handle_message, Trace)),
+%% ?assert(snabbkaffe:strictly_increasing(SeqNums)),
+%% '''
 -spec strictly_increasing(list()) -> boolean().
 strictly_increasing(L) ->
   case L of

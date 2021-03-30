@@ -5,7 +5,7 @@
 
 ** Features
 - Add =?tp_span= macro that wraps around a piece of code and emits
-  trance events when entering and completing the it
+  trance events when entering and completing it
 
 ** Fixes
 - Fix type specs

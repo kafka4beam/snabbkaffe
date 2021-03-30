@@ -34,21 +34,11 @@ projection_2_test() ->
                                      )).
 
 strictly_increasing_test() ->
-  ?assertMatch( false
-              , snabbkaffe:strictly_increasing([])
-              ),
-  ?assertMatch( true
-              , snabbkaffe:strictly_increasing([1])
-              ),
-  ?assertMatch( true
-              , snabbkaffe:strictly_increasing([1, 2, 5, 6])
-              ),
-  ?assertError( _
-              , snabbkaffe:strictly_increasing([1, 2, 5, 3])
-              ),
-  ?assertError( _
-              , snabbkaffe:strictly_increasing([1, 2, 2, 3])
-              ).
+  ?assertNot(snabbkaffe:strictly_increasing([])),
+  ?assert(snabbkaffe:strictly_increasing([1])),
+  ?assert(snabbkaffe:strictly_increasing([1, 2, 5, 6])),
+  ?assertError(_, snabbkaffe:strictly_increasing([1, 2, 5, 3])),
+  ?assertError(_, snabbkaffe:strictly_increasing([1, 2, 2, 3])).
 
 get_cfg_test() ->
   Cfg1 = [{proper, [ {numtests, 1000}
