@@ -96,7 +96,7 @@ push_stat(Metric, X, Y) ->
 start_link() ->
   gen_server:start({local, ?SERVER}, ?MODULE, [], []).
 
--spec get_stats() -> datapoints().
+-spec get_stats() -> #{snabbkaffe:metric() => datapoints()}.
 get_stats() ->
   gen_server:call(?SERVER, get_stats, infinity).
 

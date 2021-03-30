@@ -6,9 +6,7 @@
 -define(foo(A), #{foo => A, bar => bar}).
 
 -define(valid(T, L),
-        ?assertMatch( true
-                    , ?projection_complete(foo, [?foo(I) || I <- T], L)
-                    )).
+        ?assert(?projection_complete(foo, [?foo(I) || I <- T], L))).
 
 -define(invalid(T, L),
         ?assertError( {panic, #{?snk_kind := "Trace is missing elements"}}

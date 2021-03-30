@@ -56,27 +56,62 @@ One can as well tune trace point log level:
 ?tp(notice, my_server_state_change, #{old_state => foo, next_state => bar})
 #+END_SRC
 
-** Collecting trace
-
-Trace collector process must be started before running the test. Full
-workflow looks like this:
+There is another convenience macro that emits an event when the
+program enters a block of code, and another event when it exits it:
 
 #+BEGIN_SRC erlang
-ok = snabbkaffe:start_trace(),
-Return = RunYourCode(),
-Trace = snabbkaffe:collect_trace(Timeout),
-snabbkaffe:stop(),
-RunCheck1(Return, Trace),
-RunCheck2(Return, Trace),
-...
-RunCheckN(Return, Trace).
+?tp_span(trans_read, #{table => Table, key => Key},
+         mnesia:read(Table, Key))
 #+END_SRC
 
-Note that =collect_trace= function is destructive: it cleans event
-buffer of the collector process. Its argument =Timeout= specifies how
-long the call will wait after the last event is received. Setting this
-parameter to a non-zero value is useful when /run stage/ starts some
-asynchronous tasks. By default =Timeout= is 0.
+The above code emits the following events:
+
+#+BEGIN_SRC erlang
+#{?snk_kind := trans_read, ?snk_span => start, table => Table, key => Key}.
+#{?snk_kind := trans_read, ?snk_span => {complete, [Records..]}, table => Table, key => Key}.
+#+END_SRC
+
+** Running the test
+
+=?check_trace= is a convenience wrapper that starts the trace
+collector process, executes /run stage/, collects traces and then
+executes /check stage/:
+
+#+BEGIN_SRC erlang
+?check_trace(begin
+               RunStage
+             end,
+             fun(ReturnValue, Trace) ->
+                CheckStage
+             end).
+#+END_SRC
+
+There is an extended version of this macro that takes additional
+configuration as the first argument:
+
+#+BEGIN_SRC erlang
+?check_trace(#{timeout => Timeout, bucket => Bucket},
+             begin
+               RunStage
+             end,
+             fun(ReturnValue, Trace) ->
+                CheckStage
+             end).
+#+END_SRC
+
+or:
+
+#+BEGIN_SRC erlang
+?check_trace(Bucket,
+             begin
+               RunStage
+             end,
+             fun(ReturnValue, Trace) ->
+                CheckStage
+             end).
+#+END_SRC
+
+=Bucket= is a parameter used for benchmarking, more on that later.
 
 ** Checking traces
 
@@ -177,48 +212,6 @@ defined like that:
 -type maybe_pair() :: {pair, event(), event()}
                     | {singleton, event()}.
 #+END_SRC
-
-** Gathering it all together
-
-=?check_trace= is a convenience wrapper that starts the trace
-collector process, executes /run stage/, collects traces and then
-executes /check stage/:
-
-#+BEGIN_SRC erlang
-?check_trace(begin
-               RunStage
-             end,
-             fun(ReturnValue, Trace) ->
-                CheckStage
-             end).
-#+END_SRC
-
-There is an extended version of this macro that takes additional
-configuration as the first argument:
-
-#+BEGIN_SRC erlang
-?check_trace(#{timeout => Timeout, bucket => Bucket},
-             begin
-               RunStage
-             end,
-             fun(ReturnValue, Trace) ->
-                CheckStage
-             end).
-#+END_SRC
-
-or:
-
-#+BEGIN_SRC erlang
-?check_trace(Bucket,
-             begin
-               RunStage
-             end,
-             fun(ReturnValue, Trace) ->
-                CheckStage
-             end).
-#+END_SRC
-
-=Bucket= is a parameter used for benchmarking, more on that later.
 
 ** Forwarding traces from the remote node
 
@@ -408,6 +401,28 @@ $(CONCUERROR) --treat_as_normal shutdown --treat_as_normal normal \
 #+END_SRC
 
 P.S. Again, this feature is experimental, use at your own risk.
+
+** Collecting trace manually
+
+If for some reason =?check_trace= macro can't be used, snabbkaffe can
+be started manually like this:
+
+#+BEGIN_SRC erlang
+ok = snabbkaffe:start_trace(),
+Return = RunYourCode(),
+Trace = snabbkaffe:collect_trace(Timeout),
+snabbkaffe:stop(),
+RunCheck1(Return, Trace),
+RunCheck2(Return, Trace),
+...
+RunCheckN(Return, Trace).
+#+END_SRC
+
+Note that =collect_trace= function is destructive: it cleans event
+buffer of the collector process. Its argument =Timeout= specifies how
+long the call will wait after the last event is received. Setting this
+parameter to a non-zero value is useful when /run stage/ starts some
+asynchronous tasks. By default =Timeout= is 0.
 
 * Benchmarking
 

@@ -441,6 +441,7 @@ push_stats(Metric, Pairs) ->
                , transform_stats(Pairs)
                ).
 
+-spec get_stats() -> #{snabbkaffe:metric() => snabbkaffe_collector:datapoints()}.
 get_stats() ->
   {ok, Stats} = gen_server:call(snabbkaffe_collector, get_stats, infinity),
   Stats.
@@ -523,7 +524,16 @@ pair_max_depth(Pairs) ->
   {_, Max} = lists:foldl(CalcDepth, {0, 0}, L),
   Max.
 
--spec strictly_increasing(list()) -> true.
+%% @doc Throws an exception when elements of the list are not strictly
+%% increasing. Otherwise, returns `true' if the list is non-empty, and
+%% `false' when it is empty.
+%%
+%% Example:
+%% ```
+%% SeqNums = ?projection(sequence_number, ?of_kind(handle_message, Trace)),
+%% ?assert(snabbkaffe:strictly_increasing(SeqNums)),
+%% '''
+-spec strictly_increasing(list()) -> boolean().
 strictly_increasing(L) ->
   case L of
     [Init|Rest] ->
@@ -539,7 +549,7 @@ strictly_increasing(L) ->
       lists:foldl(Fun, Init, Rest),
       true;
     [] ->
-      true
+      false
   end.
 
 %%====================================================================
