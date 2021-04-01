@@ -13,14 +13,6 @@
 
 -define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
 
--define(tp_span(KIND, DATA, CODE),
-        (fun() ->
-             ?tp(KIND, DATA #{?snk_span => start}),
-             __SnkRet = CODE,
-             ?tp(KIND, DATA #{?snk_span => {complete,  __SnkRet}}),
-             __SnkRet
-         end)()).
-
 -define(maybe_crash(KIND, DATA),
         snabbkaffe_nemesis:maybe_crash(KIND, DATA#{?snk_kind => KIND})).
 
