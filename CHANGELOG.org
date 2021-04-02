@@ -1,3 +1,7 @@
+* 0.10.1
+** Features
+- =snabbkaffe.hrl= has been split into parts related to tracing and
+  running the tests
 * 0.10.0
 ** Breaking changes
 - =snabbkaffe:strictly_increasing= function returns false when the
