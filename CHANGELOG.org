@@ -1,3 +1,8 @@
+* 0.11.0
+** Non-BC fixes
+- =?split_trace_at=, =?splitl_trace= and =?splitr_trace= macros now use inverse matching.
+  It was the original intention, but the fix is non-BWC
+
 * 0.10.1
 ** Features
 - =snabbkaffe.hrl= has been split into parts related to tracing and

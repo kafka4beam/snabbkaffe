@@ -11,6 +11,15 @@
             end
         end).
 
+
+-define(snk_int_inverse_match_arg(ARG),
+        fun(__SnkArg) ->
+            case __SnkArg of
+              ARG -> false;
+              _   -> true
+            end
+        end).
+
 -define(snk_int_match_arg2(M1, M2, GUARD),
         fun(__SnkArg1, __SnkArg2) ->
             case __SnkArg1 of
@@ -178,13 +187,13 @@
         ?block_until(MATCH, infinity)).
 
 -define(split_trace_at(PATTERN, TRACE),
-        lists:splitwith(?snk_int_match_arg(PATTERN), (TRACE))).
+        lists:splitwith(?snk_int_inverse_match_arg(PATTERN), (TRACE))).
 
 -define(splitl_trace(PATTERN, TRACE),
-        snabbkaffe:splitl(?snk_int_match_arg(PATTERN), (TRACE))).
+        snabbkaffe:splitl(?snk_int_inverse_match_arg(PATTERN), (TRACE))).
 
 -define(splitr_trace(PATTERN, TRACE),
-        snabbkaffe:splitr(?snk_int_match_arg(PATTERN), (TRACE))).
+        snabbkaffe:splitr(?snk_int_inverse_match_arg(PATTERN), (TRACE))).
 
 -define(inject_crash(PATTERN, STRATEGY, REASON),
         snabbkaffe_nemesis:inject_crash( ?snk_int_match_arg(PATTERN)
