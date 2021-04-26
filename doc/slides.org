@@ -1,13 +1,11 @@
 # -*- truncate-lines: nil -*-
 #+TITLE: Introduction to Snabbkaffe
+#+AUTHOR: @k32
 #+startup: beamer
-#+LaTeX_CLASS: beamer
+#+LaTeX_CLASS_OPTIONS: [10pt]
 #+OPTIONS: H:2 todo:t ^:nil d:nil todo:nil
-#+latex_header: \AtBeginSection[]{\begin{frame}<beamer>\frametitle{Topic}\tableofcontents[currentsection]\end{frame}}
-#+latex_header: \usetheme{Boadilla}
-#+latex_header: \linespread{1}
-#+latex_header: \usepackage{tikz}
-* DONE Background and motivation
+#+latex_header: \input{preamble.tex}
+* Background and motivation
 
 ** What is snabbkaffe
 

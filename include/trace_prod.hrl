@@ -4,10 +4,11 @@
 -include("common.hrl").
 
 -define(tp(LEVEL, KIND, EVT),
-        logger:log(LEVEL, EVT#{ ?snk_kind => KIND
-                              , mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}
-                              , line => ?LINE
-                              })).
+        logger:log(LEVEL,
+                   EVT#{ ?snk_kind => KIND
+                       , line => ?LINE
+                       },
+                   #{mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}})).
 
 -define(tp(KIND, EVT), ok).
 
