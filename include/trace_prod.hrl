@@ -5,10 +5,11 @@
 
 -define(tp(LEVEL, KIND, EVT),
         logger:log(LEVEL,
-                   EVT#{ ?snk_kind => KIND
-                       , line => ?LINE
-                       },
-                   #{mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}})).
+                   EVT#{ ?snk_kind => KIND },
+                   #{ mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}
+                    , line => ?LINE
+                    , file => ?FILE
+                    })).
 
 -define(tp(KIND, EVT), ok).
 
