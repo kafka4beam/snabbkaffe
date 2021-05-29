@@ -92,8 +92,9 @@
 -type maybe(A) :: {just, A} | nothing.
 
 -type run_config() ::
-        #{ bucket  => integer()
-         , timeout => integer()
+        #{ bucket   => integer()
+         , timeout  => integer()
+         , timetrap => integer()
          }.
 
 -type predicate() :: fun((event()) -> boolean()).
@@ -264,8 +265,10 @@ run(Config, Run, Check) ->
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
   snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
+  Trap = timetrap(Config),
   try
     Return  = Run(),
+    cancel_timetrap(Trap),
     Trace   = collect_trace(Timeout),
     RunTime = ?find_pairs( false
                          , #{?snk_kind := '$trace_begin'}
@@ -289,6 +292,8 @@ run(Config, Run, Check) ->
                       "Trace dump: ~p~n",
                       [EC, Error, Stack, Filename]),
       {error, {run_stage_failed, EC, Error, Stack}}
+  after
+    cancel_timetrap(Trap)
   end.
 
 -spec proper_printout(string(), list()) -> _.
@@ -746,3 +751,32 @@ maybe_rpc(M, F, A) ->
     undefined -> apply(M, F, A);
     Remote    -> rpc:call(Remote, M, F, A)
   end.
+
+-spec timetrap(map()) -> pid() | undefined.
+timetrap(#{timetrap := Timeout}) ->
+  Parent = self(),
+  spawn(
+    fun() ->
+        MRef = monitor(process, Parent),
+        erlang:send_after(Timeout, self(), timeout),
+        receive
+          timeout ->
+            Stack = process_info(Parent, current_stacktrace),
+            Trace = collect_trace(0),
+            Filename1 = dump_trace(Trace),
+            logger:critical("Run stage timed out.~n"
+                            "Stacktrace: ~p~n"
+                            "Trace dump: ~p~n",
+                            [Stack, Filename1]),
+            exit(Parent, timetrap);
+          {'DOWN', MRef, _, _, _} ->
+            ok
+        end
+    end);
+timetrap(_) ->
+  undefined.
+
+cancel_timetrap(undefined) ->
+  ok;
+cancel_timetrap(Pid) when is_pid(Pid) ->
+  exit(Pid, kill).

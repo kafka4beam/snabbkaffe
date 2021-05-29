@@ -97,15 +97,17 @@
         snabbkaffe:projection_is_subset(FIELD, TRACE, L)).
 
 -define(check_trace(BUCKET, RUN, CHECK),
-        (case snabbkaffe:run( (fun() -> BUCKET end)()
-                            , fun() -> RUN end
-                            , begin CHECK end
-                            ) of
-           true -> true;
-           ok   -> true;
-           {error, {panic, CrashKind, Args}} -> ?panic(CrashKind, Args);
-           A -> ?panic("Unexpected result", #{result => A})
-         end)).
+        (fun() ->
+             case snabbkaffe:run( (fun() -> BUCKET end)()
+                                , fun() -> RUN end
+                                , begin CHECK end
+                                ) of
+               true -> true;
+               ok   -> true;
+               {error, {panic, CrashKind, Args}} -> ?panic(CrashKind, Args);
+               A -> ?panic("Unexpected result", #{result => A})
+             end
+         end)()).
 
 -define(check_trace(RUN, CHECK),
         ?check_trace(#{}, RUN, CHECK)).

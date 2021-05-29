@@ -113,6 +113,13 @@ or:
 
 =Bucket= is a parameter used for benchmarking, more on that later.
 
+*** Timetrap
+
+Adding =timetrap => Time= parameter to the configuration will cause snabbkaffe
+to abort the run stage if doesn't finish in the specified time.
+
+Trace will be dumped, and the testcase will fail.
+
 ** Checking traces
 
 Trace is just a list of maps. Any standard function can work with

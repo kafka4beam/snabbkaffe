@@ -48,6 +48,28 @@ t_check_trace(_Config) when is_list(_Config) ->
                      , Trace)
      end).
 
+t_timetrap(_Config) when is_list(_Config) ->
+  %% 1. Test success case: timetrap doesn't happen:
+  ?check_trace(
+     #{timetrap => 100},
+     ok,
+     fun(Ret, Trace) ->
+         true
+     end),
+  %% 2. Test timetrap:
+  {Pid, MRef} = spawn_monitor(
+                  fun() ->
+                      ?check_trace(
+                         #{timetrap => 1000},
+                         timer:sleep(100000),
+                         fun(Ret, Trace) ->
+                             true
+                         end)
+                  end),
+  receive
+    A -> ?assertMatch({'DOWN', MRef, process, Pid, timetrap}, A)
+  end.
+
 t_kind_as_string(_Config) when is_list(_Config) ->
   ?check_trace(
      begin
