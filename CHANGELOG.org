@@ -1,3 +1,7 @@
+* 0.14.0
+** Features
+- Timetrap: fail a testcase and dump the trace if the run stage takes too long to complete
+
 * 0.13.0
 ** Features
 - Allow user to redefine the values of =?snk_kind=, =?snk_span= and =?snk_meta= macros
