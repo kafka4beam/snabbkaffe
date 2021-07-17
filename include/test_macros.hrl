@@ -47,10 +47,10 @@
         snabbkaffe:events_of_kind(KIND, TRACE)).
 
 -define(of_domain(DOMAIN, TRACE),
-        [E || E = #{?snk_meta := #{domain := DOMAIN}} <- TRACE]).
+        lists:filter(?snk_int_match_arg(#{?snk_meta := #{domain := DOMAIN}}), TRACE)).
 
 -define(of_node(NODE, TRACE),
-        [E || E = #{?snk_meta := #{node := NODE}} <- TRACE]).
+        lists:filter(?snk_int_match_arg(#{?snk_meta := #{node := NODE}}), TRACE)).
 
 -define(projection(FIELDS, TRACE),
         snabbkaffe:projection(FIELDS, TRACE)).
