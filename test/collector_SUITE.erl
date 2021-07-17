@@ -362,13 +362,37 @@ wait_async_action_prop() ->
 t_wait_async_action(Config) when is_list(Config) ->
   ?run_prop(Config, wait_async_action_prop()).
 
-t_metadata(Config) when is_list(Config) ->
+t_domain(Config) when is_list(Config) ->
   ?check_trace(
      begin
        ?tp(foo, #{}),
        logger:set_process_metadata(#{domain => [test]}),
-       ?tp(bar, #{})
+       ?tp(bar, #{}),
+       logger:set_process_metadata(#{domain => [test1, test2]}),
+       ?tp(baz, #{})
      end,
      fun(_, Trace) ->
-         ?assertMatch([#{?snk_kind := bar}], ?of_domain([test], Trace))
+         ?assertMatch([#{?snk_kind := bar}], ?of_domain([test], Trace)),
+         ?assertMatch([#{?snk_kind := baz}], ?of_domain([test1|_], Trace)),
+         %% Test matching of an unbound variable:
+         ?assertMatch([#{?snk_kind := baz}], ?of_domain([test1, _Dom], Trace)),
+         %% Test matching of a pattern with a bound variable:
+         Dom1 = foo,
+         ?assertMatch([], ?of_domain([test1, Dom1], Trace)),
+         %% Test matching of a bound variable:
+         Dom = [test1, test2],
+         ?assertMatch([#{?snk_kind := baz}], ?of_domain(Dom, Trace))
+     end).
+
+t_node(Config) when is_list(Config) ->
+  Node = node(),
+  FakeNode = 'fake@example.com',
+  ?check_trace(
+     begin
+       snabbkaffe_collector:tp(debug, #{?snk_kind => foo}, #{node => FakeNode}),
+       snabbkaffe_collector:tp(debug, #{?snk_kind => bar}, #{node => node()})
+     end,
+     fun(_, Trace) ->
+         ?assertMatch([#{?snk_kind := foo}], ?of_node(FakeNode, Trace)),
+         ?assertMatch([#{?snk_kind := bar}], ?of_node(Node, Trace))
      end).

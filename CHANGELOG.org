@@ -1,3 +1,7 @@
+* 0.14.1
+** Fixes
+- Fix =?of_kind= and =?of_domain= macros
+
 * 0.14.0
 ** Features
 - Timetrap: fail a testcase and dump the trace if the run stage takes too long to complete
