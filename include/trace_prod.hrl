@@ -11,10 +11,22 @@
                     , file => ?FILE
                     })).
 
--define(tp(KIND, EVT), ok).
+-define(tp(KIND, EVT),
+        begin
+          _ = EVT, %% Silence "unused variable" warnings. This term should be dropped by the compiler
+          ok
+        end).
 
--define(maybe_crash(KIND, DATA), ok).
+-define(maybe_crash(KIND, DATA),
+        begin
+          _ = DATA,
+          ok
+        end).
 
--define(maybe_crash(DATA), ok).
+-define(maybe_crash(DATA),
+        begin
+          _ = DATA,
+          ok
+        end).
 
 -endif.
