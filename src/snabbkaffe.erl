@@ -410,7 +410,7 @@ fix_ct_logging() ->
                         , #{ formatter => {logger_formatter,
                                            #{ depth => 100
                                             , single_line => false
-                                            %% , template => [msg]
+                                            , template => [time, " ", node, "\n", msg, "\n"]
                                             }}
                            }
                         );
