@@ -35,9 +35,9 @@
 -define(panic(KIND, ARGS),
         error({panic, (ARGS) #{?snk_kind => (KIND)}})).
 
--define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, GUARD),
-        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(DELAY_PATTERN)
-                                       , ?snk_int_match_arg2(DELAY_PATTERN, CONTINUE_PATTERN, GUARD)
+-define(force_ordering(CONTINUE_PATTERN, DELAYED_PATTERN, GUARD),
+        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(DELAYED_PATTERN)
+                                       , ?snk_int_match_arg2(DELAYED_PATTERN, CONTINUE_PATTERN, GUARD)
                                        )).
 
 -define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN),
