@@ -268,26 +268,12 @@ maybe_subscribe(Predicate, Timeout, Infimum, AsyncAction, State0) ->
   #s{ trace     = Trace
     , callbacks = CB0
     } = State0,
-  try
-    %% 1. Search in the past events
-    [case Evt of
-       #{?snk_meta := #{time := TS}} when TS > Infimum ->
-         case Predicate(Evt) of
-           true ->
-             throw({found, Evt});
-           false ->
-             ok
-         end;
-       _ ->
-         throw(not_found)
-     end
-     || Evt <- Trace],
-    throw(not_found)
-  catch
-    {found, Event} ->
+  %% 1. Search in the past events
+  case look_back(1, Predicate, Infimum, Trace) of
+    {0, [Event]} ->
       AsyncAction({ok, Event}),
       State0;
-    not_found ->
+    {1, []} ->
       %% 2. Postpone reply
       Ref = make_ref(),
       TRef = send_after(Timeout, self(), {timeout, Ref}),
@@ -362,3 +348,32 @@ do_forward_trace(Node) ->
       #{ parent => Node
        , node   => node()
        }).
+
+-spec look_back(non_neg_integer(),
+                snabbkaffe:predicate(),
+                integer(),
+                [snabbkaffe:event()]
+               ) -> {non_neg_integer(), [snabbkaffe:event()]}.
+look_back(N, Predicate, Infimum, Trace) ->
+  look_back(N, Predicate, Infimum, Trace, []).
+
+-spec look_back(non_neg_integer(),
+                snabbkaffe:predicate(),
+                integer(),
+                [snabbkaffe:event()],
+                [snabbkaffe:event()]
+               ) -> {non_neg_integer(), [snabbkaffe:event()]}.
+look_back(0, _Predicate, _Infimum, _Trace, Acc) ->
+  %% Got enough events:
+  {0, lists:reverse(Acc)};
+look_back(N, _Predicate, _Infimum, [], Acc) ->
+  %% Reached the end of the trace:
+  {N, lists:reverse(Acc)};
+look_back(N, _Predicate, Infimum, [#{?snk_meta := #{time := TS}}|_], Acc) when TS =< Infimum ->
+  %% Reached the end of specified time interval:
+  {N, lists:reverse(Acc)};
+look_back(N, Predicate, Infimum, [Evt|Trace], Acc) ->
+  case Predicate(Evt) of
+    true  -> look_back(N - 1, Predicate, Infimum, Trace, [Evt|Acc]);
+    false -> look_back(N, Predicate, Infimum, Trace, Acc)
+  end.
