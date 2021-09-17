@@ -33,7 +33,8 @@ race_test() ->
                       ok
                   end),
        %% Wait for the termination of the receiving process:
-       ?block_until(#{?snk_kind := pong})
+       ?block_until(#{?snk_kind := pong}),
+       ensure_no_messages()
      end,
      fun(_Ret, Trace) ->
          %% Validate that there's always a pair of events
@@ -108,7 +109,8 @@ force_order_test() ->
              end),
        timer:sleep(100),
        ?tp(first, #{}),
-       [?block_until(#{?snk_kind := second, id := I}) || I <- [1,2]]
+       [?block_until(#{?snk_kind := second, id := I}) || I <- [1,2]],
+       ensure_no_messages()
      end,
      fun(_Result, Trace) ->
          ?assert(?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 1}, Trace)),
@@ -126,7 +128,8 @@ force_order_multiple_predicates() ->
              end),
        ?tp(bar, #{}),
        ?tp(baz, #{}),
-       {ok, _} = ?block_until(#{?snk_kind := foo})
+       {ok, _} = ?block_until(#{?snk_kind := foo}),
+       ensure_no_messages()
      end,
      fun(_Result, Trace) ->
          ?assert(?strict_causality(#{?snk_kind := bar}, #{?snk_kind := foo}, Trace)),
@@ -152,7 +155,8 @@ force_order_parametrized() ->
        ?tp(foo, #{id => 1}),
        ?tp(foo, #{id => 2}),
        ?block_until(#{?snk_kind := bar, id := 1}),
-       ?block_until(#{?snk_kind := bar, id := 2})
+       ?block_until(#{?snk_kind := bar, id := 2}),
+       ensure_no_messages()
      end,
      fun(_, Trace) ->
          ?assert(?strict_causality( #{?snk_kind := foo, id := _A}
@@ -160,3 +164,10 @@ force_order_parametrized() ->
                                   , Trace
                                   ))
      end).
+
+ensure_no_messages() ->
+  receive
+    A -> exit({unexpected_message, A})
+  after 0 ->
+      ok
+  end.
