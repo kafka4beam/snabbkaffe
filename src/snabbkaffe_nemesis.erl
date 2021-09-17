@@ -45,7 +45,7 @@
         , fix_crash/1
         , maybe_crash/2
           %% Delay
-        , force_ordering/2
+        , force_ordering/3
         , maybe_delay/1
           %% Failure scenarios
         , always_crash/0
@@ -101,6 +101,7 @@
         { reference          :: reference()
         , delay_predicate    :: snabbkaffe:predicate()  % Event that is being delayed
         , continue_predicate :: snabbkaffe:predicate2() % Event that unlocks execution of the delayed process
+        , n_events           :: non_neg_integer()
         }).
 
 %% Currently this gen_server just holds the ets tables and
@@ -172,12 +173,13 @@ maybe_crash(Key, Data) ->
   ok.
 
 %% @doc Inject delay into the system
--spec force_ordering(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
-force_ordering(DelayPredicate, ContinuePredicate) ->
+-spec force_ordering(snabbkaffe:predicate(), non_neg_integer(), snabbkaffe:predicate2()) -> reference().
+force_ordering(DelayPredicate, NEvents, ContinuePredicate) when NEvents > 0 ->
   Ref = make_ref(),
   Delay = #delay{ reference          = Ref
                 , delay_predicate    = DelayPredicate
                 , continue_predicate = ContinuePredicate
+                , n_events           = NEvents
                 },
   ok = gen_server:call(?SERVER, {force_ordering, Delay}, infinity),
   Ref.
@@ -185,13 +187,14 @@ force_ordering(DelayPredicate, ContinuePredicate) ->
 %% @doc Check if the trace point should be delayed.
 -spec maybe_delay(map()) -> ok.
 maybe_delay(Event) ->
-  [snabbkaffe_collector:block_until( fun(WU) -> ContP(Event, WU) end
+  [snabbkaffe_collector:block_until( {fun(WU) -> ContP(Event, WU) end, NEvents}
                                    , infinity
                                    , infinity
                                    )
    || {_, Delays} <- lookup_singleton(?DELAY_TAB),
       #delay{ continue_predicate = ContP
             , delay_predicate    = DelayP
+            , n_events           = NEvents
             } <- Delays,
       DelayP(Event)],
   ok.

@@ -37,10 +37,14 @@
 -define(match_n_events(N, PATTERN),
         {?match_event(PATTERN), N}).
 
--define(force_ordering(CONTINUE_PATTERN, DELAYED_PATTERN, GUARD),
+-define(force_ordering(CONTINUE_PATTERN, N_EVENTS, DELAYED_PATTERN, GUARD),
         snabbkaffe_nemesis:force_ordering( ?match_event(DELAYED_PATTERN)
+                                         , N_EVENTS
                                          , ?snk_int_match_arg2(DELAYED_PATTERN, CONTINUE_PATTERN, GUARD)
                                          )).
+
+-define(force_ordering(CONTINUE_PATTERN, DELAYED_PATTERN, GUARD),
+        ?force_ordering(CONTINUE_PATTERN, 1, DELAYED_PATTERN, GUARD)).
 
 -define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN),
         ?force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, true)).
