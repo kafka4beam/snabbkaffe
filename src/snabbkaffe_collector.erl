@@ -23,8 +23,8 @@
         , get_trace/1
         , get_stats/0
         , block_until/3
-        , notify_on_event/3
-        , notify_on_event/4
+        , subscribe/4
+        , receive_events/1
         , tp/3
         , push_stat/3
         ]).
@@ -37,7 +37,7 @@
 -export([ do_forward_trace/1
         ]).
 
--export_type([async_action/0]).
+-export_type([async_action/0, subscription/0]).
 
 -define(SERVER, ?MODULE).
 
@@ -47,11 +47,19 @@
 -type async_action() :: fun(({ok, snabbkaffe:event()} | timeout) -> _).
 
 -record(callback,
-        { async_action :: async_action()
-        , predicate    :: snabbkaffe:predicate()
-        , tref         :: reference() | undefined
-        , ref          :: reference()
+        { process   :: pid()
+        , predicate :: snabbkaffe:predicate()
+        , ref       :: reference()
+        , n         :: non_neg_integer()
         }).
+
+-record(subscription,
+        { ref  :: reference()
+        , tref :: reference() | undefined
+        , n    :: non_neg_integer()
+        }).
+
+-opaque subscription() :: #subscription{}.
 
 -record(s,
         { trace             :: [snabbkaffe:timed_event()]
@@ -111,24 +119,46 @@ get_trace(Timeout) ->
 -spec block_until(snabbkaffe:predicate(), timeout(), timeout()) ->
                      {ok, snabbkaffe:event()} | timeout.
 block_until(Predicate, Timeout, BackInTime) ->
+  {ok, Sub} = subscribe(Predicate, 1, Timeout, BackInTime),
+  case receive_events(Sub) of
+    {ok, [Evt]} ->
+      {ok, Evt};
+    {timeout, []} ->
+      timeout
+  end.
+
+-spec subscribe(snabbkaffe:predicate(), non_neg_integer(), timeout(), timeout()) ->
+        {ok, subscription()}.
+subscribe(Predicate, NEvents, Timeout, BackInTime) when NEvents > 0 ->
   Infimum = infimum(BackInTime),
-  gen_server:call( ?SERVER
-                 , {block_until, Predicate, Timeout, Infimum}
-                 , infinity
-                 ).
+  SubRef = monitor(process, whereis(?SERVER)),
+  ok = gen_server:call( ?SERVER
+                      , {subscribe, Predicate, NEvents, Infimum, SubRef, self()}
+                      , infinity
+                      ),
+  TRef = send_after(Timeout, self(), {SubRef, timeout}),
+  {ok, #subscription{ ref  = SubRef
+                    , tref = TRef
+                    , n    = NEvents
+                    }}.
 
--spec notify_on_event(snabbkaffe:predicate(), timeout(), async_action()) ->
-                         ok.
-notify_on_event(Predicate, Timeout, Callback) ->
-  notify_on_event(Predicate, Timeout, timestamp(), Callback).
+-spec receive_events(subscription()) -> {ok | timeout, [snabbkaffe:event()]}.
+receive_events(Sub = #subscription{ref = Ref, n = NEvents}) ->
+  Ret = do_recv_events(Ref, NEvents, []),
+  unsubscribe(Sub),
+  Ret.
 
--spec notify_on_event(snabbkaffe:predicate(), timeout(), timeout(), async_action()) ->
-                         ok.
-notify_on_event(Predicate, Timeout, BackInTime, Callback) ->
-  gen_server:call( ?SERVER
-                 , {notify_on_event, Callback, Predicate, Timeout, BackInTime}
-                 , infinity
-                 ).
+%% @doc NOTE: This function should be called from the same process
+%% that subscribed to `SubRef'
+-spec unsubscribe(subscription()) -> ok.
+unsubscribe(#subscription{ref = SubRef, tref = TRef}) ->
+  ok = gen_server:call( ?SERVER
+                      , {unsubscribe, SubRef}
+                      , infinity
+                      ),
+  demonitor(SubRef, [flush]),
+  cancel_timer(TRef),
+  flush_events(SubRef).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -145,7 +175,7 @@ init([]) ->
          }}.
 
 handle_cast({trace, Evt}, State0 = #s{trace = T0, callbacks = CB0}) ->
-  CB = maybe_unblock_someone(Evt, CB0),
+  CB = maybe_notify_someone(Evt, CB0),
   State = State0#s{ trace         = [Evt|T0]
                   , last_event_ts = timestamp()
                   , callbacks     = CB
@@ -155,7 +185,7 @@ handle_cast(_Evt, State) ->
   {noreply, State}.
 
 handle_call({trace, Evt}, _From, State0 = #s{trace = T0, callbacks = CB0}) ->
-  CB = maybe_unblock_someone(Evt, CB0),
+  CB = maybe_notify_someone(Evt, CB0),
   State = State0#s{ trace         = [Evt|T0]
                   , last_event_ts = timestamp()
                   , callbacks     = CB
@@ -173,30 +203,16 @@ handle_call(get_stats, _From, State) ->
 handle_call({get_trace, Timeout}, From, State) ->
   send_after(Timeout, self(), {flush, From, Timeout}),
   {noreply, State};
-handle_call({block_until, Predicate, Timeout, Infimum}, From, State0) ->
-  Callback = fun(Result) ->
-                 gen_server:reply(From, Result)
-             end,
-  State = maybe_subscribe(Predicate, Timeout, Infimum, Callback, State0),
-  {noreply, State};
-handle_call({notify_on_event, Callback, Predicate, Timeout, BackInTime}, _From, State0) ->
-  State = maybe_subscribe(Predicate, Timeout, BackInTime, Callback, State0),
+handle_call({subscribe, Predicate, NEvents, Infimum, SubRef, Process}, _From, State0) ->
+  State = handle_subscribe(Predicate, NEvents, Infimum, SubRef, Process, State0),
   {reply, ok, State};
+handle_call({unsubscribe, Ref}, _From, State = #s{callbacks = Callbacks0}) ->
+  Callbacks = lists:keydelete(Ref, #callback.ref, Callbacks0),
+  {reply, ok, State#s{callbacks = Callbacks}};
 handle_call(_Request, _From, State) ->
   Reply = unknown_call,
   {reply, Reply, State}.
 
-handle_info({timeout, Ref}, State) ->
-  #s{callbacks = CB0} = State,
-  Fun = fun(#callback{ref = Ref1, async_action = AsyncAction})
-            when Ref1 =:= Ref ->
-            AsyncAction(timeout),
-            false;
-           (C) ->
-            {true, C}
-        end,
-  CB = lists:filtermap(Fun, CB0),
-  {noreply, State#s{callbacks = CB}};
 handle_info(Event = {flush, To, Timeout}, State) ->
   #s{ trace         = Trace
     , last_event_ts = LastEventTs
@@ -238,53 +254,57 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
--spec maybe_unblock_someone( snabbkaffe:event()
-                           , [#callback{}]
-                           ) -> [#callback{}].
-maybe_unblock_someone(Evt, Callbacks) ->
-  Fun = fun(Callback) ->
-            #callback{ predicate    = Predicate
-                     , async_action = AsyncAction
-                     , tref         = TRef
-                     } = Callback,
+-spec maybe_notify_someone( snabbkaffe:event()
+                          , [#callback{}]
+                          ) -> [#callback{}].
+maybe_notify_someone(Evt, Callbacks) ->
+  Fun = fun(Callback0 = #callback{predicate = Predicate}) ->
             case Predicate(Evt) of
+              true ->
+                Callback = send_event(Evt, Callback0),
+                if Callback#callback.n > 0 ->
+                    {true, Callback};
+                   true ->
+                    false
+                end;
               false ->
-                {true, Callback};
-              true  ->
-                cancel_timer(TRef),
-                AsyncAction({ok, Evt}),
-                false
+                {true, Callback0}
             end
         end,
   lists:filtermap(Fun, Callbacks).
 
--spec maybe_subscribe( snabbkaffe:predicate()
-                     , timeout()
-                     , integer()
-                     , async_action()
-                     , #s{}
-                     ) -> #s{}.
-maybe_subscribe(Predicate, Timeout, Infimum, AsyncAction, State0) ->
+-spec handle_subscribe( snabbkaffe:predicate()
+                      , non_neg_integer()
+                      , integer()
+                      , reference()
+                      , pid()
+                      , #s{}
+                      ) -> #s{}.
+handle_subscribe(Predicate, NEvents, Infimum, SubRef, Process, State0) ->
   #s{ trace     = Trace
     , callbacks = CB0
     } = State0,
-  %% 1. Search in the past events
-  case look_back(1, Predicate, Infimum, Trace) of
-    {0, [Event]} ->
-      AsyncAction({ok, Event}),
-      State0;
-    {1, []} ->
-      %% 2. Postpone reply
-      Ref = make_ref(),
-      TRef = send_after(Timeout, self(), {timeout, Ref}),
-      Callback = #callback{ async_action = AsyncAction
-                          , predicate    = Predicate
-                          , tref         = TRef
-                          , ref          = Ref
-                          },
-      State0#s{ callbacks = [Callback|CB0]
-              }
+  Callback0 = #callback{ process   = Process
+                       , predicate = Predicate
+                       , ref       = SubRef
+                       , n         = NEvents
+                       },
+  %% 1. Search in the past events:
+  Events = look_back(NEvents, Predicate, Infimum, Trace, []),
+  %% 2. Send back the past events:
+  Callback = lists:foldl(fun send_event/2, Callback0, Events),
+  %% 3. Have we sent all of them? If not add the subscriber
+  NLeft = Callback#callback.n,
+  if NLeft > 0 ->
+      State0#s{callbacks = [Callback|CB0]};
+     NLeft =:= 0 ->
+      State0
   end.
+
+-spec send_event(snabbkaffe:event(), #callback{}) -> #callback{}.
+send_event(Event, CB = #callback{process = Pid, ref = Ref, n = NLeft}) ->
+  Pid ! {Ref, Event},
+  CB#callback{n = NLeft - 1}.
 
 -spec send_after(timeout(), pid(), _Msg) ->
                     reference() | undefined.
@@ -311,12 +331,6 @@ infimum(_) ->
   %% starting from 0 should not match any events:
   0.
 -endif.
-
--spec cancel_timer(reference() | undefined) -> _.
-cancel_timer(undefined) ->
-  ok;
-cancel_timer(TRef) ->
-  erlang:cancel_timer(TRef).
 
 -spec timestamp() -> integer().
 -ifndef(CONCUERROR).
@@ -352,28 +366,50 @@ do_forward_trace(Node) ->
 -spec look_back(non_neg_integer(),
                 snabbkaffe:predicate(),
                 integer(),
-                [snabbkaffe:event()]
-               ) -> {non_neg_integer(), [snabbkaffe:event()]}.
-look_back(N, Predicate, Infimum, Trace) ->
-  look_back(N, Predicate, Infimum, Trace, []).
-
--spec look_back(non_neg_integer(),
-                snabbkaffe:predicate(),
-                integer(),
                 [snabbkaffe:event()],
                 [snabbkaffe:event()]
-               ) -> {non_neg_integer(), [snabbkaffe:event()]}.
+               ) -> [snabbkaffe:event()].
 look_back(0, _Predicate, _Infimum, _Trace, Acc) ->
   %% Got enough events:
-  {0, lists:reverse(Acc)};
-look_back(N, _Predicate, _Infimum, [], Acc) ->
+  Acc;
+look_back(_N, _Predicate, _Infimum, [], Acc) ->
   %% Reached the end of the trace:
-  {N, lists:reverse(Acc)};
-look_back(N, _Predicate, Infimum, [#{?snk_meta := #{time := TS}}|_], Acc) when TS =< Infimum ->
+  Acc;
+look_back(_N, _Predicate, Infimum, [#{?snk_meta := #{time := TS}}|_], Acc) when TS =< Infimum ->
   %% Reached the end of specified time interval:
-  {N, lists:reverse(Acc)};
+  Acc;
 look_back(N, Predicate, Infimum, [Evt|Trace], Acc) ->
   case Predicate(Evt) of
     true  -> look_back(N - 1, Predicate, Infimum, Trace, [Evt|Acc]);
     false -> look_back(N, Predicate, Infimum, Trace, Acc)
+  end.
+
+%% TODO: Remove
+-spec cancel_timer(reference() | undefined) -> _.
+cancel_timer(undefined) ->
+  ok;
+cancel_timer(TRef) ->
+  erlang:cancel_timer(TRef).
+
+flush_events(SubRef) ->
+  receive
+    {SubRef, _} -> flush_events(SubRef)
+  after
+    0 -> ok
+  end.
+
+-spec do_recv_events(reference(),
+                     non_neg_integer(),
+                     [snabbkaffe:event()]
+                    ) -> {ok | timeout, [snabbkaffe:event()]}.
+do_recv_events(_Ref, 0, Acc) ->
+  {ok, lists:reverse(Acc)};
+do_recv_events(Ref, N, Acc) ->
+  receive
+    {'DOWN', Ref, _, _, _} ->
+      exit(snabbkaffe_collector_died);
+    {Ref, timeout} ->
+      {timeout, lists:reverse(Acc)};
+    {Ref, Event} ->
+      do_recv_events(Ref, N - 1, [Event|Acc])
   end.

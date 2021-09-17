@@ -75,6 +75,7 @@
 
 -type event() ::
         #{ ?snk_kind := kind()
+         , ?snk_meta := map()
          , _ => _
          }.
 
@@ -157,16 +158,13 @@ block_until(Predicate, Timeout) ->
 -spec wait_async_action(fun(() -> Return), predicate(), timeout()) ->
                            {Return, {ok, event()} | timeout}.
 wait_async_action(Action, Predicate, Timeout) ->
-  Ref = make_ref(),
-  Self = self(),
-  Callback = fun(Result) ->
-                 Self ! {Ref, Result}
-             end,
-  snabbkaffe_collector:notify_on_event(Predicate, Timeout, Callback),
+  {ok, Sub} = snabbkaffe_collector:subscribe(Predicate, 1, Timeout, 0),
   Return = Action(),
-  receive
-    {Ref, Result} ->
-      {Return, Result}
+  case snabbkaffe_collector:receive_events(Sub) of
+    {timeout, []} ->
+      {Return, timeout};
+    {ok, [Event]} ->
+      {Return, {ok, Event}}
   end.
 
 %% @doc Block execution of the run stage of a testcase until an event
@@ -776,6 +774,7 @@ timetrap(#{timetrap := Timeout}) ->
 timetrap(_) ->
   undefined.
 
+-spec cancel_timetrap(pid() | undefined) -> ok.
 cancel_timetrap(undefined) ->
   ok;
 cancel_timetrap(Pid) when is_pid(Pid) ->
