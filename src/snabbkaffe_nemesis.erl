@@ -45,7 +45,7 @@
         , fix_crash/1
         , maybe_crash/2
           %% Delay
-        , inject_delay/2
+        , force_ordering/2
         , maybe_delay/1
           %% Failure scenarios
         , always_crash/0
@@ -172,14 +172,14 @@ maybe_crash(Key, Data) ->
   ok.
 
 %% @doc Inject delay into the system
--spec inject_delay(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
-inject_delay(DelayPredicate, ContinuePredicate) ->
+-spec force_ordering(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
+force_ordering(DelayPredicate, ContinuePredicate) ->
   Ref = make_ref(),
   Delay = #delay{ reference          = Ref
                 , delay_predicate    = DelayPredicate
                 , continue_predicate = ContinuePredicate
                 },
-  ok = gen_server:call(?SERVER, {inject_delay, Delay}, infinity),
+  ok = gen_server:call(?SERVER, {force_ordering, Delay}, infinity),
   Ref.
 
 %% @doc Check if the trace point should be delayed.
@@ -269,7 +269,7 @@ handle_call({fix_crash, Ref}, _From, State) ->
   Faults = lists:keydelete(Ref, #fault.reference, Faults0),
   ets:insert(?ERROR_TAB, {?SINGLETON_KEY, Faults}),
   {reply, ok, State};
-handle_call({inject_delay, Delay}, _From, State) ->
+handle_call({force_ordering, Delay}, _From, State) ->
   [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
   ets:insert(?DELAY_TAB, {?SINGLETON_KEY, [Delay|Delays]}),
   {reply, ok, State};

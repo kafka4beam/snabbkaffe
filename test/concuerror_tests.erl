@@ -5,6 +5,8 @@
 
 -export([ race_test/0
         , causality_test/0
+        , block_until_multiple_events_test/0
+        , block_until_timeout_test/0
         , fail_test/0
         , force_order_test/0
         , force_order_multiple_predicates/0
@@ -54,6 +56,42 @@ race_test() ->
          %% Both asserts are true:
          %% ?assertMatch([#{winner := 2}], ?of_kind(pong, Trace)),
          %% ?assertMatch([#{winner := 1}], ?of_kind(pong, Trace)),
+         true
+     end).
+
+block_until_multiple_events_test() ->
+  ?check_trace(
+     begin
+       spawn(fun() ->
+                 ?tp(foo, #{n => 1}),
+                 ?tp(foo, #{n => 2})
+             end),
+       {ok, Sub} = snabbkaffe_collector:subscribe(?match_event(#{?snk_kind := foo}), 2, infinity, infinity),
+       ?assertMatch( {ok, [ #{?snk_kind := foo, n := 1}
+                          , #{?snk_kind := foo, n := 2}
+                          ]}
+                   , snabbkaffe_collector:receive_events(Sub)),
+       ensure_no_messages()
+     end,
+     fun(_, Trace) ->
+         ?assertMatch( [ #{?snk_kind := foo, n := 1}
+                       , #{?snk_kind := foo, n := 2}
+                       ]
+                     , ?of_kind(foo, Trace)
+                     )
+     end).
+
+block_until_timeout_test() ->
+  ?check_trace(
+     begin
+       spawn(fun() ->
+                 timer:sleep(1000),
+                 catch ?tp(foo, #{})
+             end),
+       ?block_until(#{?snk_kind := foo}, 100),
+       ensure_no_messages()
+     end,
+     fun(_, _Trace) ->
          true
      end).
 

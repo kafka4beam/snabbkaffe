@@ -396,3 +396,20 @@ t_node(Config) when is_list(Config) ->
          ?assertMatch([#{?snk_kind := foo}], ?of_node(FakeNode, Trace)),
          ?assertMatch([#{?snk_kind := bar}], ?of_node(Node, Trace))
      end).
+
+t_block_until_multiple_past(Config) when is_list(Config) ->
+  ?check_trace(
+     begin
+       ?tp(foo, #{n => 1}),
+       ?tp(foo, #{n => 2}),
+       timer:sleep(100),
+       ?assertMatch( {ok, [#{n := 1}, #{n := 2}]}
+                   , snabbkaffe:block_until( ?match_n_events(2, #{?snk_kind := foo})
+                                           , infinity
+                                           , infinity
+                                           )
+                   )
+     end,
+     fun(_, Trace) ->
+         ?assertMatch([_, _], ?of_kind(foo, Trace))
+     end).

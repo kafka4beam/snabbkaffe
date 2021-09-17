@@ -116,16 +116,20 @@ get_trace(Timeout) ->
 
 %% NOTE: concuerror supports only `Timeout = infinity' and `BackInType = infinity'
 %% or `BackInTime = 0'
--spec block_until(snabbkaffe:predicate(), timeout(), timeout()) ->
-                     {ok, snabbkaffe:event()} | timeout.
-block_until(Predicate, Timeout, BackInTime) ->
+-spec block_until(snabbkaffe:filter(), timeout(), timeout()) ->
+        {ok, snabbkaffe:event()} | timeout |
+        {ok, [snabbkaffe:event()]} | {timeout, [snabbkaffe:event()]}.
+block_until(Predicate, Timeout, BackInTime) when is_function(Predicate) ->
   {ok, Sub} = subscribe(Predicate, 1, Timeout, BackInTime),
   case receive_events(Sub) of
     {ok, [Evt]} ->
       {ok, Evt};
     {timeout, []} ->
       timeout
-  end.
+  end;
+block_until({Predicate, NEvents}, Timeout, BackInTime) ->
+  {ok, Sub} = subscribe(Predicate, NEvents, Timeout, BackInTime),
+  receive_events(Sub).
 
 -spec subscribe(snabbkaffe:predicate(), non_neg_integer(), timeout(), timeout()) ->
         {ok, subscription()}.

@@ -3,14 +3,13 @@
 
 -include("common.hrl").
 
--define(snk_int_match_arg(ARG),
+-define(match_event(ARG),
         fun(__SnkArg) ->
             case __SnkArg of
               ARG -> true;
               _   -> false
             end
         end).
-
 
 -define(snk_int_inverse_match_arg(ARG),
         fun(__SnkArg) ->
@@ -35,10 +34,13 @@
 -define(panic(KIND, ARGS),
         error({panic, (ARGS) #{?snk_kind => (KIND)}})).
 
+-define(match_n_events(N, PATTERN),
+        {?match_event(PATTERN), N}).
+
 -define(force_ordering(CONTINUE_PATTERN, DELAYED_PATTERN, GUARD),
-        snabbkaffe_nemesis:inject_delay( ?snk_int_match_arg(DELAYED_PATTERN)
-                                       , ?snk_int_match_arg2(DELAYED_PATTERN, CONTINUE_PATTERN, GUARD)
-                                       )).
+        snabbkaffe_nemesis:force_ordering( ?match_event(DELAYED_PATTERN)
+                                         , ?snk_int_match_arg2(DELAYED_PATTERN, CONTINUE_PATTERN, GUARD)
+                                         )).
 
 -define(force_ordering(CONTINUE_PATTERN, DELAY_PATTERN),
         ?force_ordering(CONTINUE_PATTERN, DELAY_PATTERN, true)).
@@ -47,18 +49,18 @@
         snabbkaffe:events_of_kind(KIND, TRACE)).
 
 -define(of_domain(DOMAIN, TRACE),
-        lists:filter(?snk_int_match_arg(#{?snk_meta := #{domain := DOMAIN}}), TRACE)).
+        lists:filter(?match_event(#{?snk_meta := #{domain := DOMAIN}}), TRACE)).
 
 -define(of_node(NODE, TRACE),
-        lists:filter(?snk_int_match_arg(#{?snk_meta := #{node := NODE}}), TRACE)).
+        lists:filter(?match_event(#{?snk_meta := #{node := NODE}}), TRACE)).
 
 -define(projection(FIELDS, TRACE),
         snabbkaffe:projection(FIELDS, TRACE)).
 
 -define(find_pairs(STRICT, M1, M2, GUARD, TRACE),
         snabbkaffe:find_pairs( STRICT
-                             , ?snk_int_match_arg(M1)
-                             , ?snk_int_match_arg(M2)
+                             , ?match_event(M1)
+                             , ?match_event(M2)
                              , ?snk_int_match_arg2(M1, M2, GUARD)
                              , (TRACE)
                              )).
@@ -68,8 +70,8 @@
 
 -define(causality(M1, M2, GUARD, TRACE),
         snabbkaffe:causality( false
-                            , ?snk_int_match_arg(M1)
-                            , ?snk_int_match_arg(M2)
+                            , ?match_event(M1)
+                            , ?match_event(M2)
                             , ?snk_int_match_arg2(M1, M2, GUARD)
                             , (TRACE)
                             )).
@@ -79,8 +81,8 @@
 
 -define(strict_causality(M1, M2, GUARD, TRACE),
         snabbkaffe:causality( true
-                            , ?snk_int_match_arg(M1)
-                            , ?snk_int_match_arg(M2)
+                            , ?match_event(M1)
+                            , ?match_event(M2)
                             , ?snk_int_match_arg2(M1, M2, GUARD)
                             , (TRACE)
                             )).
@@ -171,11 +173,11 @@
 -define(retry(TIMEOUT, N, FUN), snabbkaffe:retry(TIMEOUT, N, fun() -> FUN end)).
 
 -define(block_until(PATTERN, TIMEOUT, BACK_IN_TIME),
-        snabbkaffe:block_until(?snk_int_match_arg(PATTERN), (TIMEOUT), (BACK_IN_TIME))).
+        snabbkaffe:block_until(?match_event(PATTERN), (TIMEOUT), (BACK_IN_TIME))).
 
 -define(wait_async_action(ACTION, PATTERN, TIMEOUT),
         snabbkaffe:wait_async_action( fun() -> ACTION end
-                                    , ?snk_int_match_arg(PATTERN)
+                                    , ?match_event(PATTERN)
                                     , (TIMEOUT)
                                     )).
 
@@ -198,7 +200,7 @@
         snabbkaffe:splitr(?snk_int_inverse_match_arg(PATTERN), (TRACE))).
 
 -define(inject_crash(PATTERN, STRATEGY, REASON),
-        snabbkaffe_nemesis:inject_crash( ?snk_int_match_arg(PATTERN)
+        snabbkaffe_nemesis:inject_crash( ?match_event(PATTERN)
                                        , (STRATEGY)
                                        , (REASON)
                                        )).

@@ -102,6 +102,8 @@
 
 -type predicate2() :: fun((event(), event()) -> boolean()).
 
+-type filter() :: predicate() | {predicate(), non_neg_integer()}.
+
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
              , predicate2/0
@@ -150,10 +152,10 @@ collect_trace() ->
 collect_trace(Timeout) ->
   snabbkaffe_collector:get_trace(Timeout).
 
-%% @equiv block_until(Predicate, Timeout, 100)
--spec block_until(predicate(), timeout()) -> {ok, event()} | timeout.
-block_until(Predicate, Timeout) ->
-  block_until(Predicate, Timeout, 100).
+%% @equiv block_until(Filter, Timeout, 100)
+-spec block_until(filter(), timeout()) -> {ok, event()} | timeout.
+block_until(Filter, Timeout) ->
+  block_until(Filter, Timeout, 100).
 
 -spec wait_async_action(fun(() -> Return), predicate(), timeout()) ->
                            {Return, {ok, event()} | timeout}.
@@ -186,10 +188,10 @@ wait_async_action(Action, Predicate, Timeout) ->
 %%
 %% <b>Note</b>: In the current implementation `Predicate' runs for
 %% every received event. It means this function should be lightweight
--spec block_until(predicate(), timeout(), timeout()) ->
+-spec block_until(filter(), timeout(), timeout()) ->
                      event() | timeout.
-block_until(Predicate, Timeout, BackInTime) ->
-  snabbkaffe_collector:block_until(Predicate, Timeout, BackInTime).
+block_until(Filter, Timeout, BackInTime) ->
+  snabbkaffe_collector:block_until(Filter, Timeout, BackInTime).
 
 -spec start_trace() -> ok.
 start_trace() ->
