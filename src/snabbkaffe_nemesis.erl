@@ -43,6 +43,7 @@
         , inject_crash/2
         , inject_crash/3
         , fix_crash/1
+        , cleanup/0
         , maybe_crash/2
           %% Delay
         , force_ordering/3
@@ -142,6 +143,11 @@ inject_crash(Predicate, Scenario, Reason) ->
 -spec fix_crash(reference()) -> ok.
 fix_crash(Ref) ->
   gen_server:call(?SERVER, {fix_crash, Ref}, infinity).
+
+%% @doc Remove all injected crashes
+-spec cleanup() -> ok.
+cleanup() ->
+  gen_server:call(?SERVER, cleanup, infinity).
 
 %% @doc Check if there are any injected crashes that match this data,
 %% and respond with the crash reason if so.
@@ -255,8 +261,7 @@ init([]) ->
                            , {read_concurrency, true}
                            , public
                            ]),
-  ets:insert(?ERROR_TAB, {?SINGLETON_KEY, []}),
-  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, []}),
+  init_data(),
   {ok, #s{ injected_errors = FT
          , fault_states    = ST
          , injected_delays = DT
@@ -275,6 +280,12 @@ handle_call({fix_crash, Ref}, _From, State) ->
 handle_call({force_ordering, Delay}, _From, State) ->
   [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
   ets:insert(?DELAY_TAB, {?SINGLETON_KEY, [Delay|Delays]}),
+  {reply, ok, State};
+handle_call(cleanup, _From, State) ->
+  ets:delete_all_objects(?ERROR_TAB),
+  ets:delete_all_objects(?DELAY_TAB),
+  ets:delete_all_objects(?STATE_TAB),
+  init_data(),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -301,3 +312,9 @@ lookup_singleton(Table) ->
     undefined -> [];
     _Pid      -> ets:lookup(Table, ?SINGLETON_KEY)
   end.
+
+-spec init_data() -> ok.
+init_data() ->
+  ets:insert(?ERROR_TAB, {?SINGLETON_KEY, []}),
+  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, []}),
+  ok.

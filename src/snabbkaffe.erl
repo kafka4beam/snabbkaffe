@@ -21,6 +21,7 @@
         , start_trace/0
         , forward_trace/1
         , stop/0
+        , cleanup/0
         , collect_trace/0
         , collect_trace/1
         , block_until/2
@@ -207,6 +208,11 @@ stop() ->
   snabbkaffe_sup:stop(),
   ok.
 
+-spec cleanup() -> ok.
+cleanup() ->
+  _ = collect_trace(0),
+  snabbkaffe_nemesis:cleanup().
+
 %% @doc Forward traces from the remote node to the local node.
 -spec forward_trace(node()) -> ok.
 forward_trace(Node) ->
@@ -276,6 +282,7 @@ run(Config, Run, Check) ->
                          , Trace
                          ),
     ?SNK_CONCUERROR orelse push_stats(run_time, Bucket, RunTime),
+    cleanup(),
     try Check(Return, Trace)
     catch EC1:Error1 ?BIND_STACKTRACE(Stack1) ->
         ?GET_STACKTRACE(Stack1),

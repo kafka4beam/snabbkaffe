@@ -22,8 +22,9 @@ concuerror_test: $(CONCUERROR)
 	$(call concuerror,causality_test)
 	$(call concuerror,fail_test)
 	$(call concuerror,force_order_test)
-	#$(call concuerror,force_order_multiple_predicates_test)
-	$(call concuerror,force_order_parametrized)
+	$(call concuerror,force_order_multiple_predicates_test)
+	$(call concuerror,force_order_parametrized_test)
+	$(call concuerror,force_order_multiple_events_test)
 
 $(CONCUERROR):
 	mkdir -p _build/

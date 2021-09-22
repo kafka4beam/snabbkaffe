@@ -9,8 +9,9 @@
         , block_until_timeout_test/0
         , fail_test/0
         , force_order_test/0
-        , force_order_multiple_predicates/0
-        , force_order_parametrized/0
+        , force_order_multiple_predicates_test/0
+        , force_order_parametrized_test/0
+        , force_order_multiple_events_test/0
         ]).
 
 race_test() ->
@@ -156,7 +157,7 @@ force_order_test() ->
      end).
 
 %% Check waiting for multiple events
-force_order_multiple_predicates() ->
+force_order_multiple_predicates_test() ->
   ?check_trace(
      begin
        ?force_ordering(#{?snk_kind := baz}, #{?snk_kind := foo}),
@@ -175,7 +176,7 @@ force_order_multiple_predicates() ->
      end).
 
 %% Check parameter bindings in force_ordering
-force_order_parametrized() ->
+force_order_parametrized_test() ->
   ?check_trace(
      begin
        ?force_ordering( #{?snk_kind := foo, id := _A}
@@ -201,6 +202,23 @@ force_order_parametrized() ->
                                   , #{?snk_kind := bar, id := _A}
                                   , Trace
                                   ))
+     end).
+
+force_order_multiple_events_test() ->
+  ?check_trace(
+     begin
+       ?force_ordering(#{?snk_kind := foo}, 2, #{?snk_kind := bar}, true),
+       spawn(fun() ->
+                 ?tp(foo, #{}),
+                 ?tp(foo, #{})
+             end),
+       ?tp(bar, #{}),
+       ?block_until(#{?snk_kind := bar})
+     end,
+     fun(_, Trace) ->
+         ?assertMatch( [foo, foo, bar]
+                     , ?projection(?snk_kind, ?of_kind([foo, bar], Trace))
+                     )
      end).
 
 ensure_no_messages() ->
