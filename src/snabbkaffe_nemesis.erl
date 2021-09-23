@@ -43,9 +43,10 @@
         , inject_crash/2
         , inject_crash/3
         , fix_crash/1
+        , cleanup/0
         , maybe_crash/2
           %% Delay
-        , inject_delay/2
+        , force_ordering/3
         , maybe_delay/1
           %% Failure scenarios
         , always_crash/0
@@ -101,6 +102,7 @@
         { reference          :: reference()
         , delay_predicate    :: snabbkaffe:predicate()  % Event that is being delayed
         , continue_predicate :: snabbkaffe:predicate2() % Event that unlocks execution of the delayed process
+        , n_events           :: non_neg_integer()
         }).
 
 %% Currently this gen_server just holds the ets tables and
@@ -142,6 +144,11 @@ inject_crash(Predicate, Scenario, Reason) ->
 fix_crash(Ref) ->
   gen_server:call(?SERVER, {fix_crash, Ref}, infinity).
 
+%% @doc Remove all injected crashes
+-spec cleanup() -> ok.
+cleanup() ->
+  gen_server:call(?SERVER, cleanup, infinity).
+
 %% @doc Check if there are any injected crashes that match this data,
 %% and respond with the crash reason if so.
 -spec maybe_crash(fault_key(), map()) -> ok.
@@ -172,26 +179,28 @@ maybe_crash(Key, Data) ->
   ok.
 
 %% @doc Inject delay into the system
--spec inject_delay(snabbkaffe:predicate(), snabbkaffe:predicate2()) -> reference().
-inject_delay(DelayPredicate, ContinuePredicate) ->
+-spec force_ordering(snabbkaffe:predicate(), non_neg_integer(), snabbkaffe:predicate2()) -> reference().
+force_ordering(DelayPredicate, NEvents, ContinuePredicate) when NEvents > 0 ->
   Ref = make_ref(),
   Delay = #delay{ reference          = Ref
                 , delay_predicate    = DelayPredicate
                 , continue_predicate = ContinuePredicate
+                , n_events           = NEvents
                 },
-  ok = gen_server:call(?SERVER, {inject_delay, Delay}, infinity),
+  ok = gen_server:call(?SERVER, {force_ordering, Delay}, infinity),
   Ref.
 
 %% @doc Check if the trace point should be delayed.
 -spec maybe_delay(map()) -> ok.
 maybe_delay(Event) ->
-  [snabbkaffe_collector:block_until( fun(WU) -> ContP(Event, WU) end
+  [snabbkaffe_collector:block_until( {fun(WU) -> ContP(Event, WU) end, NEvents}
                                    , infinity
                                    , infinity
                                    )
    || {_, Delays} <- lookup_singleton(?DELAY_TAB),
       #delay{ continue_predicate = ContP
             , delay_predicate    = DelayP
+            , n_events           = NEvents
             } <- Delays,
       DelayP(Event)],
   ok.
@@ -252,8 +261,7 @@ init([]) ->
                            , {read_concurrency, true}
                            , public
                            ]),
-  ets:insert(?ERROR_TAB, {?SINGLETON_KEY, []}),
-  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, []}),
+  init_data(),
   {ok, #s{ injected_errors = FT
          , fault_states    = ST
          , injected_delays = DT
@@ -269,9 +277,15 @@ handle_call({fix_crash, Ref}, _From, State) ->
   Faults = lists:keydelete(Ref, #fault.reference, Faults0),
   ets:insert(?ERROR_TAB, {?SINGLETON_KEY, Faults}),
   {reply, ok, State};
-handle_call({inject_delay, Delay}, _From, State) ->
+handle_call({force_ordering, Delay}, _From, State) ->
   [{_, Delays}] = ets:lookup(?DELAY_TAB, ?SINGLETON_KEY),
   ets:insert(?DELAY_TAB, {?SINGLETON_KEY, [Delay|Delays]}),
+  {reply, ok, State};
+handle_call(cleanup, _From, State) ->
+  ets:delete_all_objects(?ERROR_TAB),
+  ets:delete_all_objects(?DELAY_TAB),
+  ets:delete_all_objects(?STATE_TAB),
+  init_data(),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -298,3 +312,9 @@ lookup_singleton(Table) ->
     undefined -> [];
     _Pid      -> ets:lookup(Table, ?SINGLETON_KEY)
   end.
+
+-spec init_data() -> ok.
+init_data() ->
+  ets:insert(?ERROR_TAB, {?SINGLETON_KEY, []}),
+  ets:insert(?DELAY_TAB, {?SINGLETON_KEY, []}),
+  ok.

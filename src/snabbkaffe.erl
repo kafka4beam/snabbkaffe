@@ -21,6 +21,7 @@
         , start_trace/0
         , forward_trace/1
         , stop/0
+        , cleanup/0
         , collect_trace/0
         , collect_trace/1
         , block_until/2
@@ -75,6 +76,7 @@
 
 -type event() ::
         #{ ?snk_kind := kind()
+         , ?snk_meta := map()
          , _ => _
          }.
 
@@ -100,6 +102,8 @@
 -type predicate() :: fun((event()) -> boolean()).
 
 -type predicate2() :: fun((event(), event()) -> boolean()).
+
+-type filter() :: predicate() | {predicate(), non_neg_integer()}.
 
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
@@ -149,24 +153,21 @@ collect_trace() ->
 collect_trace(Timeout) ->
   snabbkaffe_collector:get_trace(Timeout).
 
-%% @equiv block_until(Predicate, Timeout, 100)
--spec block_until(predicate(), timeout()) -> {ok, event()} | timeout.
-block_until(Predicate, Timeout) ->
-  block_until(Predicate, Timeout, 100).
+%% @equiv block_until(Filter, Timeout, 100)
+-spec block_until(filter(), timeout()) -> {ok, event()} | timeout.
+block_until(Filter, Timeout) ->
+  block_until(Filter, Timeout, 100).
 
 -spec wait_async_action(fun(() -> Return), predicate(), timeout()) ->
                            {Return, {ok, event()} | timeout}.
 wait_async_action(Action, Predicate, Timeout) ->
-  Ref = make_ref(),
-  Self = self(),
-  Callback = fun(Result) ->
-                 Self ! {Ref, Result}
-             end,
-  snabbkaffe_collector:notify_on_event(Predicate, Timeout, Callback),
+  {ok, Sub} = snabbkaffe_collector:subscribe(Predicate, 1, Timeout, 0),
   Return = Action(),
-  receive
-    {Ref, Result} ->
-      {Return, Result}
+  case snabbkaffe_collector:receive_events(Sub) of
+    {timeout, []} ->
+      {Return, timeout};
+    {ok, [Event]} ->
+      {Return, {ok, Event}}
   end.
 
 %% @doc Block execution of the run stage of a testcase until an event
@@ -188,10 +189,10 @@ wait_async_action(Action, Predicate, Timeout) ->
 %%
 %% <b>Note</b>: In the current implementation `Predicate' runs for
 %% every received event. It means this function should be lightweight
--spec block_until(predicate(), timeout(), timeout()) ->
+-spec block_until(filter(), timeout(), timeout()) ->
                      event() | timeout.
-block_until(Predicate, Timeout, BackInTime) ->
-  snabbkaffe_collector:block_until(Predicate, Timeout, BackInTime).
+block_until(Filter, Timeout, BackInTime) ->
+  snabbkaffe_collector:block_until(Filter, Timeout, BackInTime).
 
 -spec start_trace() -> ok.
 start_trace() ->
@@ -206,6 +207,11 @@ start_trace() ->
 stop() ->
   snabbkaffe_sup:stop(),
   ok.
+
+-spec cleanup() -> ok.
+cleanup() ->
+  _ = collect_trace(0),
+  snabbkaffe_nemesis:cleanup().
 
 %% @doc Forward traces from the remote node to the local node.
 -spec forward_trace(node()) -> ok.
@@ -276,6 +282,7 @@ run(Config, Run, Check) ->
                          , Trace
                          ),
     ?SNK_CONCUERROR orelse push_stats(run_time, Bucket, RunTime),
+    cleanup(),
     try Check(Return, Trace)
     catch EC1:Error1 ?BIND_STACKTRACE(Stack1) ->
         ?GET_STACKTRACE(Stack1),
@@ -776,6 +783,7 @@ timetrap(#{timetrap := Timeout}) ->
 timetrap(_) ->
   undefined.
 
+-spec cancel_timetrap(pid() | undefined) -> ok.
 cancel_timetrap(undefined) ->
   ok;
 cancel_timetrap(Pid) when is_pid(Pid) ->

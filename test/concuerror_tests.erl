@@ -5,10 +5,13 @@
 
 -export([ race_test/0
         , causality_test/0
+        , block_until_multiple_events_test/0
+        , block_until_timeout_test/0
         , fail_test/0
         , force_order_test/0
-        , force_order_multiple_predicates/0
-        , force_order_parametrized/0
+        , force_order_multiple_predicates_test/0
+        , force_order_parametrized_test/0
+        , force_order_multiple_events_test/0
         ]).
 
 race_test() ->
@@ -33,7 +36,8 @@ race_test() ->
                       ok
                   end),
        %% Wait for the termination of the receiving process:
-       ?block_until(#{?snk_kind := pong})
+       ?block_until(#{?snk_kind := pong}),
+       ensure_no_messages()
      end,
      fun(_Ret, Trace) ->
          %% Validate that there's always a pair of events
@@ -53,6 +57,42 @@ race_test() ->
          %% Both asserts are true:
          %% ?assertMatch([#{winner := 2}], ?of_kind(pong, Trace)),
          %% ?assertMatch([#{winner := 1}], ?of_kind(pong, Trace)),
+         true
+     end).
+
+block_until_multiple_events_test() ->
+  ?check_trace(
+     begin
+       spawn(fun() ->
+                 ?tp(foo, #{n => 1}),
+                 ?tp(foo, #{n => 2})
+             end),
+       {ok, Sub} = snabbkaffe_collector:subscribe(?match_event(#{?snk_kind := foo}), 2, infinity, infinity),
+       ?assertMatch( {ok, [ #{?snk_kind := foo, n := 1}
+                          , #{?snk_kind := foo, n := 2}
+                          ]}
+                   , snabbkaffe_collector:receive_events(Sub)),
+       ensure_no_messages()
+     end,
+     fun(_, Trace) ->
+         ?assertMatch( [ #{?snk_kind := foo, n := 1}
+                       , #{?snk_kind := foo, n := 2}
+                       ]
+                     , ?of_kind(foo, Trace)
+                     )
+     end).
+
+block_until_timeout_test() ->
+  ?check_trace(
+     begin
+       spawn(fun() ->
+                 timer:sleep(1000),
+                 catch ?tp(foo, #{})
+             end),
+       ?block_until(#{?snk_kind := foo}, 100),
+       ensure_no_messages()
+     end,
+     fun(_, _Trace) ->
          true
      end).
 
@@ -108,7 +148,8 @@ force_order_test() ->
              end),
        timer:sleep(100),
        ?tp(first, #{}),
-       [?block_until(#{?snk_kind := second, id := I}) || I <- [1,2]]
+       [?block_until(#{?snk_kind := second, id := I}) || I <- [1,2]],
+       ensure_no_messages()
      end,
      fun(_Result, Trace) ->
          ?assert(?strict_causality(#{?snk_kind := first}, #{?snk_kind := second, id := 1}, Trace)),
@@ -116,7 +157,7 @@ force_order_test() ->
      end).
 
 %% Check waiting for multiple events
-force_order_multiple_predicates() ->
+force_order_multiple_predicates_test() ->
   ?check_trace(
      begin
        ?force_ordering(#{?snk_kind := baz}, #{?snk_kind := foo}),
@@ -126,7 +167,8 @@ force_order_multiple_predicates() ->
              end),
        ?tp(bar, #{}),
        ?tp(baz, #{}),
-       {ok, _} = ?block_until(#{?snk_kind := foo})
+       {ok, _} = ?block_until(#{?snk_kind := foo}),
+       ensure_no_messages()
      end,
      fun(_Result, Trace) ->
          ?assert(?strict_causality(#{?snk_kind := bar}, #{?snk_kind := foo}, Trace)),
@@ -134,7 +176,7 @@ force_order_multiple_predicates() ->
      end).
 
 %% Check parameter bindings in force_ordering
-force_order_parametrized() ->
+force_order_parametrized_test() ->
   ?check_trace(
      begin
        ?force_ordering( #{?snk_kind := foo, id := _A}
@@ -152,7 +194,8 @@ force_order_parametrized() ->
        ?tp(foo, #{id => 1}),
        ?tp(foo, #{id => 2}),
        ?block_until(#{?snk_kind := bar, id := 1}),
-       ?block_until(#{?snk_kind := bar, id := 2})
+       ?block_until(#{?snk_kind := bar, id := 2}),
+       ensure_no_messages()
      end,
      fun(_, Trace) ->
          ?assert(?strict_causality( #{?snk_kind := foo, id := _A}
@@ -160,3 +203,27 @@ force_order_parametrized() ->
                                   , Trace
                                   ))
      end).
+
+force_order_multiple_events_test() ->
+  ?check_trace(
+     begin
+       ?force_ordering(#{?snk_kind := foo}, 2, #{?snk_kind := bar}, true),
+       spawn(fun() ->
+                 ?tp(foo, #{}),
+                 ?tp(foo, #{})
+             end),
+       ?tp(bar, #{}),
+       ?block_until(#{?snk_kind := bar})
+     end,
+     fun(_, Trace) ->
+         ?assertMatch( [foo, foo, bar]
+                     , ?projection(?snk_kind, ?of_kind([foo, bar], Trace))
+                     )
+     end).
+
+ensure_no_messages() ->
+  receive
+    A -> exit({unexpected_message, A})
+  after 0 ->
+      ok
+  end.
