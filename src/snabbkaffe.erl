@@ -132,8 +132,9 @@ tp(Location, Level, Kind, Data) ->
 local_tp(Location, Level, Kind, Data, Metadata) ->
   Event = Data #{?snk_kind => Kind},
   EventAndMeta = Event #{ ?snk_meta => Metadata },
-  snabbkaffe_nemesis:maybe_delay(EventAndMeta),
-  snabbkaffe_nemesis:maybe_crash(Location, EventAndMeta),
+  %% Avoid crashes if the testcase finishes before the processes terminate:
+  catch snabbkaffe_nemesis:maybe_delay(EventAndMeta),
+  catch snabbkaffe_nemesis:maybe_crash(Location, EventAndMeta),
   snabbkaffe_collector:tp(Level, Event, Metadata).
 
 -spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
