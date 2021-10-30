@@ -13,7 +13,7 @@ remote_tp() ->
   ?tp(remote_foo, #{node => node()}).
 
 remote_crash() ->
-  ?assertError(notmyday, ?tp(remote_fail, #{})).
+  ?assertExit(notmyday, ?tp(remote_fail, #{})).
 
 remote_delay() ->
   spawn(

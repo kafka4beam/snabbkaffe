@@ -49,6 +49,7 @@ t_check_trace(_Config) when is_list(_Config) ->
      end).
 
 t_timetrap(_Config) when is_list(_Config) ->
+  logger:notice("Don't mind the below crashes, they are intentional!", []),
   %% 1. Test success case: timetrap doesn't happen:
   ?check_trace(
      #{timetrap => 100},

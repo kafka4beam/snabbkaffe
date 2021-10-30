@@ -26,12 +26,12 @@ race_test() ->
        %% Spawn two processes competing to send ping message to the
        %% first one:
        spawn_link(fun() ->
-                      catch ?tp(ping, #{id => 1}),
+                      ?tp(ping, #{id => 1}),
                       Pid ! {ping, 1},
                       ok
                   end),
        spawn_link(fun() ->
-                      catch ?tp(ping, #{id => 2}),
+                      ?tp(ping, #{id => 2}),
                       Pid ! {ping, 2},
                       ok
                   end),
@@ -87,7 +87,7 @@ block_until_timeout_test() ->
      begin
        spawn(fun() ->
                  timer:sleep(1000),
-                 catch ?tp(foo, #{})
+                 ?tp(foo, #{})
              end),
        ?block_until(#{?snk_kind := foo}, 100),
        ensure_no_messages()
