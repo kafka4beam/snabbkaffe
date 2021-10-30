@@ -165,7 +165,7 @@ maybe_crash(Key, Data) ->
                                        }
                                 , #{}
                                 ),
-         error(R);
+         exit(R);
        false ->
          ok
      end

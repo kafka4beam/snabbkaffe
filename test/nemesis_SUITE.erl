@@ -33,7 +33,7 @@ t_always_crash(Config) when is_list(Config) ->
                           , snabbkaffe_nemesis:always_crash()
                           ),
        ?assertMatch(ok, Run(2)),
-       ?assertError(notmyday, Run(1)),
+       ?assertExit(notmyday, Run(1)),
        snabbkaffe_nemesis:fix_crash(Ref),
        ?assertMatch(ok, Run(1))
      end,

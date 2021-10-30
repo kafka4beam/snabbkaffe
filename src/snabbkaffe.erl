@@ -142,7 +142,7 @@ remote_tp(Location, Level, Kind, Data, Meta) ->
   %% TODO: replacing local_tp with tp will allow to diasy chain nodes, not sure if needed
   case rpc:call(Node, snabbkaffe, local_tp, [Location, Level, Kind, Data, Meta], infinity) of
     ok -> ok;
-    {badrpc, {'EXIT', {Reason, _StackTrace}}} -> error(Reason)
+    {badrpc, {'EXIT', Reason}} -> exit(Reason)
   end.
 
 -spec collect_trace() -> trace().
