@@ -9,8 +9,9 @@ CONCUERROR_RUN := $(CONCUERROR) \
 compile:
 	rebar3 do dialyzer, eunit, ct --sname snk_main, xref
 
-concuerror = echo "\n=========================================\nRunning $(1)\n=========================================\n"; \
-  $(CONCUERROR_RUN) -f $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/test/concuerror_tests.beam -t $(1) || \
+concuerror = \
+	@echo "\n=========================================\nRunning $(1)\n=========================================\n"; \
+	$(CONCUERROR_RUN) -f $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/test/concuerror_tests.beam -t $(1) || \
 	{ cat concuerror_report.txt; exit 1; }
 
 .PHONY: concuerror_test

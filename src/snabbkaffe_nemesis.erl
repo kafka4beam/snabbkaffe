@@ -308,9 +308,14 @@ terminate(_Reason, _State) ->
 
 -spec lookup_singleton(atom()) -> [{?SINGLETON_KEY, term()}].
 lookup_singleton(Table) ->
-  case whereis(?SERVER) of
-    undefined -> [];
-    _Pid      -> ets:lookup(Table, ?SINGLETON_KEY)
+  try ets:lookup(Table, ?SINGLETON_KEY) of
+    Val -> Val
+  catch
+    error:badarg ->
+      %% Table doesn't exist. Probably it happens because snabbkaffe
+      %% nemesis was stopped while the SUT is running. Ignore it and
+      %% let the SUT do its thing.
+      []
   end.
 
 -spec init_data() -> ok.
