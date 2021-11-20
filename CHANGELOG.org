@@ -1,3 +1,25 @@
+* 0.16.0
+** Features
+- Passing return value to the check stage callback is made optional
+- Check stage supports a list of callbacks
+
+* 0.15.0
+** Fixes
+- Fix race condition in the injected fault
+
+** Features
+- Improved event subscription mechanism
+  New APIs: snabbkaffe_collector:subscribe and receive_events, that aim to
+  replace the =?wait_async_action= macro
+
+- block_until macro support waiting for multiple events
+- snabbkaffe:fix_ct_logging function includes node name in the logs
+
+** Non-BC fixes
+- Error injection uses =erlang:exit= instead of =erlang:error=. This
+  may affect a small portion of testcases that specifically expect
+  certain errors
+
 * 0.14.1
 ** Fixes
 - Fix =?of_kind= and =?of_domain= macros
