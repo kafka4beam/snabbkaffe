@@ -105,9 +105,15 @@
 
 -type filter() :: predicate() | {predicate(), non_neg_integer()}.
 
+-type trace_spec(Result) :: fun((Result, trace()) -> ok | true)
+                          | fun((trace()) -> ok | true).
+
+-type trace_specs(Result) :: trace_spec(Result)
+                           | [trace_spec(Result) | {string(), trace_spec(Result)}].
+
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
-             , predicate2/0
+             , predicate2/0, trace_spec/1, trace_specs/1
              ]).
 
 %%====================================================================
@@ -151,7 +157,8 @@ collect_trace() ->
 
 -spec collect_trace(integer()) -> trace().
 collect_trace(Timeout) ->
-  snabbkaffe_collector:get_trace(Timeout).
+  snabbkaffe_collector:wait_for_silence(Timeout),
+  snabbkaffe_collector:flush_trace().
 
 %% @equiv block_until(Filter, Timeout, 100)
 -spec block_until(filter(), timeout()) -> {ok, event()} | timeout.
@@ -265,42 +272,15 @@ find_pairs(Strict, CauseP, EffectP, Guard, L) ->
 run(Bucket, Run, Check) when is_integer(Bucket) ->
   run(#{bucket => Bucket}, Run, Check);
 run(Config, Run, Check) ->
-  Timeout = maps:get(timeout, Config, 0),
-  Bucket  = maps:get(bucket, Config, undefined),
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
   snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
-  Trap = timetrap(Config),
-  try
-    Return  = Run(),
-    cancel_timetrap(Trap),
-    Trace   = collect_trace(Timeout),
-    RunTime = ?find_pairs( false
-                         , #{?snk_kind := '$trace_begin'}
-                         , #{?snk_kind := '$trace_end'}
-                         , Trace
-                         ),
-    ?SNK_CONCUERROR orelse push_stats(run_time, Bucket, RunTime),
-    cleanup(),
-    try Check(Return, Trace)
-    catch EC1:Error1 ?BIND_STACKTRACE(Stack1) ->
-        ?GET_STACKTRACE(Stack1),
-        Filename1 = dump_trace(Trace),
-        logger:critical("Check stage failed: ~p~n~p~nStacktrace: ~p~n"
-                        "Trace dump: ~p~n",
-                        [EC1, Error1, Stack1, Filename1]),
-        {error, {check_mode_failed, EC1, Error1, Stack1}}
-    end
-  catch EC:Error ?BIND_STACKTRACE(Stack) ->
-      ?GET_STACKTRACE(Stack),
-      Filename = dump_trace(collect_trace(0)),
-      logger:critical("Run stage failed: ~p:~p~nStacktrace: ~p~n"
-                      "Trace dump: ~p~n",
-                      [EC, Error, Stack, Filename]),
-      {error, {run_stage_failed, EC, Error, Stack}}
-  after
-    cancel_timetrap(Trap)
+  case run_stage(Run, Config) of
+    {ok, Result, Trace} ->
+      check_stage(Check, Result, Trace);
+    Err ->
+      Err
   end.
 
 -spec proper_printout(string(), list()) -> _.
@@ -567,6 +547,76 @@ strictly_increasing(L) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+-spec run_stage(fun(() -> Result), run_config()) -> {ok, Result, trace()}
+                                                  | {run_stage_failed, atom(), _Err, _Stacktrace}.
+run_stage(Run, Config) ->
+  Timeout = maps:get(timeout, Config, 0),
+  Bucket  = maps:get(bucket, Config, undefined),
+  Trap = timetrap(Config),
+  try
+    Result = Run(),
+    Timeout > 0 andalso logger:info("Waiting for the silence...", []),
+    snabbkaffe_collector:wait_for_silence(Timeout),
+    cancel_timetrap(Trap),
+    Trace = snabbkaffe_collector:flush_trace(),
+    RunTime = ?find_pairs( false
+                         , #{?snk_kind := '$trace_begin'}
+                         , #{?snk_kind := '$trace_end'}
+                         , Trace
+                         ),
+    ?SNK_CONCUERROR orelse push_stats(run_time, Bucket, RunTime),
+    {ok, Result, Trace}
+  catch
+    EC:Err ?BIND_STACKTRACE(Stack) ->
+      ?GET_STACKTRACE(Stack),
+      Trace1 = snabbkaffe_collector:flush_trace(),
+      Filename = dump_trace(Trace1),
+      logger:critical("Run stage failed: ~p:~p~nStacktrace: ~p~n"
+                      "Trace dump: ~p~n",
+                      [EC, Err, Stack, Filename]),
+      {run_stage_failed, EC, Err, Stack}
+  after
+    cancel_timetrap(Trap),
+    cleanup()
+  end.
+
+-spec check_stage(trace_specs(Result), Result, trace()) -> boolean() | {error, _}.
+check_stage(Fun, Result, Trace) when is_function(Fun) ->
+  check_stage([{"check stage", Fun}], Result, Trace);
+check_stage(Specs, Result, Trace) ->
+  Failed = [Spec || Spec <- Specs, not run_trace_spec(Spec, Result, Trace)],
+  case Failed of
+    [] ->
+      true;
+    _ ->
+      logger:critical("Check stage failed. Trace dump: ~p~n",
+                      [dump_trace(Trace)]),
+      {error, check_stage_failed}
+  end.
+
+run_trace_spec(Spec, Result, Trace) ->
+  case Spec of
+    {Name, Fun} -> ok;
+    Fun         -> Name = io_lib:format("~p", [Fun])
+  end,
+  try
+    Ret = if is_function(Fun, 1) ->
+              Fun(Trace);
+             is_function(Fun, 2) ->
+              Fun(Result, Trace);
+             true ->
+              logger:critical("~p failed: badfun", [Name]),
+              false
+          end,
+    Ret =:= true orelse Ret =:= ok
+  catch EC:Error ?BIND_STACKTRACE(Stack) ->
+      ?GET_STACKTRACE(Stack),
+      logger:critical("~p failed: ~p~n~p~nStacktrace: ~p~n",
+                      [Name, EC, Error, Stack]),
+      false
+  end.
+
 
 -spec do_find_pairs( boolean()
                    , fun((event(), event()) -> boolean())

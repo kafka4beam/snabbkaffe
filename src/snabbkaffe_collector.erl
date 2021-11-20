@@ -20,13 +20,17 @@
 
 %% API
 -export([ start_link/0
-        , get_trace/1
+        , flush_trace/0
         , get_stats/0
         , block_until/3
         , subscribe/4
         , receive_events/1
         , tp/3
         , push_stat/3
+        ]).
+
+%% Internal exports
+-export([ wait_for_silence/1
         ]).
 
 %% gen_server callbacks
@@ -109,9 +113,9 @@ get_stats() ->
   gen_server:call(?SERVER, get_stats, infinity).
 
 %% NOTE: Concuerror only supports `Timeout=0'
--spec get_trace(integer()) -> snabbkaffe:timed_trace().
-get_trace(Timeout) ->
-  {ok, Trace} = gen_server:call(?SERVER, {get_trace, Timeout}, infinity),
+-spec flush_trace() -> snabbkaffe:timed_trace().
+flush_trace() ->
+  {ok, Trace} = gen_server:call(?SERVER, flush_trace, infinity),
   Trace.
 
 %% NOTE: concuerror supports only `Timeout = infinity' and `BackInType = infinity'
@@ -164,6 +168,21 @@ unsubscribe(#subscription{ref = SubRef, tref = TRef}) ->
   cancel_timer(TRef),
   flush_events(SubRef).
 
+-spec wait_for_silence(integer()) -> ok.
+wait_for_silence(0) ->
+  ok;
+wait_for_silence(SilenceInterval) when SilenceInterval > 0 ->
+  do_wait_for_silence(SilenceInterval, SilenceInterval).
+
+
+%%%===================================================================
+%%% Internal exports
+%%%===================================================================
+
+-spec get_last_event_ts() -> integer().
+get_last_event_ts() ->
+  gen_server:call(?SERVER, get_last_event_ts, infinity).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -204,46 +223,20 @@ handle_call({push_stat, Metric, Stat}, _From, State0) ->
   {reply, ok, State0#s{stats = Stats}};
 handle_call(get_stats, _From, State) ->
   {reply, {ok, State#s.stats}, State};
-handle_call({get_trace, Timeout}, From, State) ->
-  send_after(Timeout, self(), {flush, From, Timeout}),
-  {noreply, State};
+handle_call(flush_trace, _From, State) ->
+  do_flush_trace(State);
 handle_call({subscribe, Predicate, NEvents, Infimum, SubRef, Process}, _From, State0) ->
   State = handle_subscribe(Predicate, NEvents, Infimum, SubRef, Process, State0),
   {reply, ok, State};
 handle_call({unsubscribe, Ref}, _From, State = #s{callbacks = Callbacks0}) ->
   Callbacks = lists:keydelete(Ref, #callback.ref, Callbacks0),
   {reply, ok, State#s{callbacks = Callbacks}};
+handle_call(get_last_event_ts, _From, State = #s{last_event_ts = LastEventTs}) ->
+  {reply, LastEventTs, State};
 handle_call(_Request, _From, State) ->
   Reply = unknown_call,
   {reply, Reply, State}.
 
-handle_info(Event = {flush, To, Timeout}, State) ->
-  #s{ trace         = Trace
-    , last_event_ts = LastEventTs
-    } = State,
-  Finished =
-    if Timeout > 0 ->
-        Dt = erlang:convert_time_unit( timestamp() - LastEventTs
-                                     , microsecond
-                                     , millisecond
-                                     ),
-        Dt >= Timeout;
-       true ->
-        %% Logically, this branch is redundand, but it's here as a
-        %% workaround for concuerror
-        true
-    end,
-  if Finished ->
-      TraceEnd = #{ ?snk_kind => '$trace_end'
-                  , ?snk_meta => #{time => LastEventTs}
-                  },
-      Result = lists:reverse([TraceEnd|Trace]),
-      gen_server:reply(To, {ok, Result}),
-      {noreply, State #s{trace = []}};
-    true ->
-      send_after(Timeout, self(), Event),
-      {noreply, State}
-  end;
 handle_info(_, State) ->
   {noreply, State}.
 
@@ -257,6 +250,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+do_flush_trace(#s{trace = Trace, last_event_ts = LastEventTs} = State) ->
+  TraceEnd = #{ ?snk_kind => '$trace_end'
+              , ?snk_meta => #{time => LastEventTs}
+              },
+  Result = {ok, lists:reverse([TraceEnd|Trace])},
+  {reply, Result, State #s{trace = []}}.
 
 -spec maybe_notify_someone( snabbkaffe:event()
                           , [#callback{}]
@@ -416,4 +416,17 @@ do_recv_events(Ref, N, Acc) ->
       {timeout, lists:reverse(Acc)};
     {Ref, Event} ->
       do_recv_events(Ref, N - 1, [Event|Acc])
+  end.
+
+-spec do_wait_for_silence(integer(), integer()) -> ok.
+do_wait_for_silence(SilenceInterval, SleepTime) ->
+  timer:sleep(SleepTime),
+  Dt = erlang:convert_time_unit( timestamp() - get_last_event_ts()
+                               , microsecond
+                               , millisecond
+                               ),
+  if Dt >= SilenceInterval ->
+      ok;
+     true ->
+      do_wait_for_silence(SilenceInterval, SilenceInterval - Dt)
   end.
