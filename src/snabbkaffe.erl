@@ -151,7 +151,8 @@ collect_trace() ->
 
 -spec collect_trace(integer()) -> trace().
 collect_trace(Timeout) ->
-  snabbkaffe_collector:get_trace(Timeout).
+  snabbkaffe_collector:wait_for_silence(Timeout),
+  snabbkaffe_collector:flush_trace().
 
 %% @equiv block_until(Filter, Timeout, 100)
 -spec block_until(filter(), timeout()) -> {ok, event()} | timeout.
