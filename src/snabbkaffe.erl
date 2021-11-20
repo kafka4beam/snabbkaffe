@@ -105,9 +105,15 @@
 
 -type filter() :: predicate() | {predicate(), non_neg_integer()}.
 
+-type trace_spec(Result) :: fun((Result, trace()) -> ok | true)
+                          | fun((trace()) -> ok | true).
+
+-type trace_specs(Result) :: trace_spec(Result)
+                           | [trace_spec(Result) | {string(), trace_spec(Result)}].
+
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
-             , predicate2/0
+             , predicate2/0, trace_spec/1, trace_specs/1
              ]).
 
 %%====================================================================
@@ -272,15 +278,7 @@ run(Config, Run, Check) ->
   snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
   case run_stage(Run, Config) of
     {ok, Result, Trace} ->
-      try Check(Result, Trace)
-      catch EC1:Error1 ?BIND_STACKTRACE(Stack1) ->
-          ?GET_STACKTRACE(Stack1),
-          Filename1 = dump_trace(Trace),
-          logger:critical("Check stage failed: ~p~n~p~nStacktrace: ~p~n"
-                          "Trace dump: ~p~n",
-                          [EC1, Error1, Stack1, Filename1]),
-          {error, {check_mode_failed, EC1, Error1, Stack1}}
-      end;
+      check_stage(Check, Result, Trace);
     Err ->
       Err
   end.
@@ -582,6 +580,43 @@ run_stage(Run, Config) ->
     cancel_timetrap(Trap),
     cleanup()
   end.
+
+-spec check_stage(trace_specs(Result), Result, trace()) -> boolean() | {error, _}.
+check_stage(Fun, Result, Trace) when is_function(Fun) ->
+  check_stage([{"check stage", Fun}], Result, Trace);
+check_stage(Specs, Result, Trace) ->
+  Failed = [Spec || Spec <- Specs, not run_trace_spec(Spec, Result, Trace)],
+  case Failed of
+    [] ->
+      true;
+    _ ->
+      logger:critical("Check stage failed. Trace dump: ~p~n",
+                      [dump_trace(Trace)]),
+      {error, check_stage_failed}
+  end.
+
+run_trace_spec(Spec, Result, Trace) ->
+  case Spec of
+    {Name, Fun} -> ok;
+    Fun         -> Name = io_lib:format("~p", [Fun])
+  end,
+  try
+    Ret = if is_function(Fun, 1) ->
+              Fun(Trace);
+             is_function(Fun, 2) ->
+              Fun(Result, Trace);
+             true ->
+              logger:critical("~p failed: badfun", [Name]),
+              false
+          end,
+    Ret =:= true orelse Ret =:= ok
+  catch EC:Error ?BIND_STACKTRACE(Stack) ->
+      ?GET_STACKTRACE(Stack),
+      logger:critical("~p failed: ~p~n~p~nStacktrace: ~p~n",
+                      [Name, EC, Error, Stack]),
+      false
+  end.
+
 
 -spec do_find_pairs( boolean()
                    , fun((event(), event()) -> boolean())

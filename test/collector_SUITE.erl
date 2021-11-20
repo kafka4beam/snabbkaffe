@@ -372,7 +372,7 @@ t_domain(Config) when is_list(Config) ->
        logger:set_process_metadata(#{domain => [test1, test2]}),
        ?tp(baz, #{})
      end,
-     fun(_, Trace) ->
+     fun(Trace) ->
          ?assertMatch([#{?snk_kind := bar}], ?of_domain([test], Trace)),
          ?assertMatch([#{?snk_kind := baz}], ?of_domain([test1|_], Trace)),
          %% Test matching of an unbound variable:
@@ -393,7 +393,7 @@ t_node(Config) when is_list(Config) ->
        snabbkaffe_collector:tp(debug, #{?snk_kind => foo}, #{node => FakeNode}),
        snabbkaffe_collector:tp(debug, #{?snk_kind => bar}, #{node => node()})
      end,
-     fun(_, Trace) ->
+     fun(Trace) ->
          ?assertMatch([#{?snk_kind := foo}], ?of_node(FakeNode, Trace)),
          ?assertMatch([#{?snk_kind := bar}], ?of_node(Node, Trace))
      end).
@@ -411,6 +411,6 @@ t_block_until_multiple_past(Config) when is_list(Config) ->
                                            )
                    )
      end,
-     fun(_, Trace) ->
+     fun(Trace) ->
          ?assertMatch([_, _], ?of_kind(foo, Trace))
      end).

@@ -1,19 +1,52 @@
 * 0.16.0
 ** Features
-- Passing return value to the check stage callback is made optional
-- Check stage supports a list of callbacks
+- Passing return value to the check stage callback is made optional:
+#+begin_src erlang
+?check_trace(
+   RunStage,
+   fun(Trace) ->
+       ...
+   end)
+#+end_src
+- Check stage supports a list of callbacks in the following form:
+#+begin_src erlang
+?check_trace(
+   RunStage,
+   [ fun trace_check/1
+   , fun another_trace_check/2
+   , {"There are no crashes", fun(Trace) -> ... end}
+   , {"Another important check", fun(Return, Trace) -> ... end}
+   ])
+#+end_src
+
+** Fixes
+- Fix timetrap while waiting for the silence interval
+** Non-BC changes
+- The check stage now must return ok or true to indicate success
 
 * 0.15.0
 ** Fixes
 - Fix race condition in the injected fault
 
 ** Features
-- Improved event subscription mechanism
-  New APIs: snabbkaffe_collector:subscribe and receive_events, that aim to
-  replace the =?wait_async_action= macro
+- Improved event subscription mechanism using new APIs: =snabbkaffe_collector:subcribe= and =receive_events=, that aim to replace the =?wait_async_action= macro:
 
-- block_until macro support waiting for multiple events
-- snabbkaffe:fix_ct_logging function includes node name in the logs
+#+begin_src erlang
+{ok, Sub} = snabbkaffe_collector:subscribe( ?match_event(#{?snk_kind := foo})
+                                          , _Quantity = 2
+                                          , _Timeout = infinity
+                                          , _BackInTime = 0
+                                          ),
+... trigger async action ...
+?assertMatch( {ok, [ #{?snk_kind := foo, n := 1}
+                   , #{?snk_kind := foo, n := 2}
+                   ]}
+            , snabbkaffe_collector:receive_events(Sub)),
+#+end_src
+
+- =?block_until= macro support waiting for multiple events
+
+- =snabbkaffe:fix_ct_logging= function includes node name in the logs
 
 ** Non-BC fixes
 - Error injection uses =erlang:exit= instead of =erlang:error=. This
