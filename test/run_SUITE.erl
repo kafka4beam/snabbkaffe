@@ -1,5 +1,6 @@
 -module(run_SUITE).
 
+-compile(nowarn_export_all).
 -compile(export_all).
 
 -include_lib("stdlib/include/assert.hrl").

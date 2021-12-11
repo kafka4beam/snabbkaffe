@@ -2,6 +2,10 @@
 -define(SNABBKAFFE_TEST_MACROS_HRL, true).
 
 -include("common.hrl").
+%% It's a common practice to use underscore matching in
+%% find_pairs-like macros. Silence the warning until I figure out how
+%% to avoid it.
+-compile(nowarn_underscore_match).
 
 -define(match_event(ARG),
         fun(__SnkArg) ->

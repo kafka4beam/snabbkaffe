@@ -24,6 +24,7 @@
         , cleanup/0
         , collect_trace/0
         , collect_trace/1
+        , dump_trace/1
         , block_until/2
         , block_until/3
         , wait_async_action/3
@@ -544,6 +545,26 @@ strictly_increasing(L) ->
       false
   end.
 
+%% @doc Dump trace to a file and return the file name
+-spec dump_trace(trace()) -> file:filename().
+-ifndef(CONCUERROR).
+dump_trace(Trace) ->
+  {ok, CWD} = file:get_cwd(),
+  Filename = integer_to_list(os:system_time()) ++ ".log",
+  FullPath = filename:join([CWD, "snabbkaffe", Filename]),
+  filelib:ensure_dir(FullPath),
+  {ok, Handle} = file:open(FullPath, [write]),
+  try
+    lists:foreach(fun(I) -> io:format(Handle, "~0p.~n", [I]) end, Trace)
+  after
+    file:close(Handle)
+  end,
+  FullPath.
+-else.
+dump_trace(Trace) ->
+  lists:foreach(fun(I) -> io:format("~0p.~n", [I]) end, Trace).
+-endif. %% CONCUERROR
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
@@ -643,25 +664,6 @@ do_find_pairs(Strict, Guard, [{A, C, E}|T]) ->
     _ ->
       do_find_pairs(Strict, Guard, T)
   end.
-
--spec dump_trace(trace()) -> file:filename().
--ifndef(CONCUERROR).
-dump_trace(Trace) ->
-  {ok, CWD} = file:get_cwd(),
-  Filename = integer_to_list(os:system_time()) ++ ".log",
-  FullPath = filename:join([CWD, "snabbkaffe", Filename]),
-  filelib:ensure_dir(FullPath),
-  {ok, Handle} = file:open(FullPath, [write]),
-  try
-    lists:foreach(fun(I) -> io:format(Handle, "~99999p.~n", [I]) end, Trace)
-  after
-    file:close(Handle)
-  end,
-  FullPath.
--else.
-dump_trace(Trace) ->
-  lists:foreach(fun(I) -> io:format("~99999p.~n", [I]) end, Trace).
--endif. %% CONCUERROR
 
 -spec inc_counters([Key], Map) -> Map
         when Map :: #{Key => integer()}.
