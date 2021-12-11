@@ -1,5 +1,6 @@
 -module(collector_SUITE).
 
+-compile(nowarn_export_all).
 -compile(export_all).
 
 -include_lib("snabbkaffe/include/ct_boilerplate.hrl").
@@ -54,7 +55,7 @@ t_timetrap(_Config) when is_list(_Config) ->
   ?check_trace(
      #{timetrap => 100},
      ok,
-     fun(Ret, Trace) ->
+     fun(_Ret, _Trace) ->
          true
      end),
   %% 2. Test timetrap:
@@ -63,7 +64,7 @@ t_timetrap(_Config) when is_list(_Config) ->
                       ?check_trace(
                          #{timetrap => 1000},
                          timer:sleep(100000),
-                         fun(Ret, Trace) ->
+                         fun(_Trace) ->
                              true
                          end)
                   end),
@@ -139,7 +140,7 @@ t_bar(Config) when is_list(Config) ->
 
 t_simple_metric(_Config) when is_list(_Config) ->
   [snabbkaffe:push_stat(test, rand:uniform())
-   || I <- lists:seq(1, 100)],
+   || _ <- lists:seq(1, 100)],
   ok.
 
 t_bucket_metric(_Config) when is_list(_Config) ->
@@ -173,7 +174,7 @@ t_pair_metric_buckets(_Config) when is_list(_Config) ->
 t_run_1(_Config) when is_list(_Config) ->
   [?check_trace( I
                , begin
-                   [?tp(foo, #{}) || J <- lists:seq(1, I)],
+                   [?tp(foo, #{}) || _J <- lists:seq(1, I)],
                    true
                  end
                , fun(Ret, Trace) ->
@@ -227,7 +228,7 @@ t_prop_fail_false(Config) when is_list(Config) ->
             X, list(),
             42,
             fun(_, _) ->
-                false
+                X == 1 %% Never true
             end
            ),
   ?assertExit( fail
@@ -239,7 +240,7 @@ t_prop_run_exception(Config) when is_list(Config) ->
             X, list(),
             42, %% Bucket
             begin
-              1 = 2
+              1 = X %% Never matches
             end,
             fun(_, _) ->
                 false
@@ -256,7 +257,7 @@ t_prop_check_exception(Config) when is_list(Config) ->
             42, %% Bucket
             ok,
             fun(_, _) ->
-                1 = 2
+                1 = X %% Never matches
             end
            ),
   ?assertExit( fail
