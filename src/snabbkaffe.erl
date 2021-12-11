@@ -530,17 +530,19 @@ pair_max_depth(Pairs) ->
 strictly_increasing(L) ->
   case L of
     [Init|Rest] ->
-      Fun = fun(A, B) ->
-                A > B orelse
-                  ?panic("Elements of list are not strictly increasing",
-                         #{ '1st_element' => A
-                          , '2nd_element' => B
-                          , list => L
-                          }),
-                A
+      Fun = fun(Elem, {Prev, Errors}) when Elem > Prev ->
+                {Elem, Errors};
+               (Elem, {Prev, Errors}) ->
+                {Elem, [{Prev, Elem} | Errors]}
             end,
-      lists:foldl(Fun, Init, Rest),
-      true;
+      {_, Errors} = lists:foldl(Fun, {Init, []}, Rest),
+      case Errors of
+        [] ->
+          true;
+        _ ->
+          ?panic("Elements of list are not strictly increasing",
+                 #{order_violations => Errors})
+      end;
     [] ->
       false
   end.

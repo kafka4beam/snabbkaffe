@@ -6,6 +6,7 @@
 
 ** Fixes
 - Fix compilation warnings
+- Improve output of =snabbkaffe:strictly_increasing= function
 
 ** Non-BC changes
 - Break compatibility with OTP20
