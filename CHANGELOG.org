@@ -1,3 +1,15 @@
+* 0.17.0
+
+** Features
+- Introduce =snabbkaffe:dump_trace/1= function that saves trace to a file
+- Allow to change behavior of trace points by defining =SNK_COLLECTOR= macro as =true= or =false= (the latter means log trace points instead of collecting them)
+
+** Fixes
+- Fix compilation warnings
+
+** Non-BC changes
+- Break compatibility with OTP20
+
 * 0.16.0
 ** Features
 - Passing return value to the check stage callback is made optional:
