@@ -555,14 +555,14 @@ dump_trace(Trace) ->
   filelib:ensure_dir(FullPath),
   {ok, Handle} = file:open(FullPath, [write]),
   try
-    lists:foreach(fun(I) -> io:format(Handle, "~99999p.~n", [I]) end, Trace)
+    lists:foreach(fun(I) -> io:format(Handle, "~0p.~n", [I]) end, Trace)
   after
     file:close(Handle)
   end,
   FullPath.
 -else.
 dump_trace(Trace) ->
-  lists:foreach(fun(I) -> io:format("~99999p.~n", [I]) end, Trace).
+  lists:foreach(fun(I) -> io:format("~0p.~n", [I]) end, Trace).
 -endif. %% CONCUERROR
 
 %%====================================================================
