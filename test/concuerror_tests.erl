@@ -42,8 +42,7 @@ race_test() ->
      fun(_Ret, Trace) ->
          %% Validate that there's always a pair of events
          ?assertMatch( [{pair, _, _} | _]
-                     , ?find_pairs( true
-                                  , #{?snk_kind := ping}
+                     , ?find_pairs( #{?snk_kind := ping}
                                   , #{?snk_kind := pong}
                                   , Trace
                                   )

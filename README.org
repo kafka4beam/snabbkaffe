@@ -201,23 +201,19 @@ Both =?causality= and =?strict_causality= are actually based on a more
 powerful =?find_pairs= macro that is invoked like this:
 
 #+BEGIN_SRC erlang
-?find_pairs( Strict
-           , MatchCause
+?find_pairs( MatchCause
            , MatchEffect
           [, Guard]
            , Trace
            )
 #+END_SRC
 
-where =Strict= is a boolean that determines whether events that matched
-as =Effect= may precede their cause.
-
 It returns a list of tuples of type =snabbkaffe:maybe_pair/0= that is
 defined like that:
 
 #+BEGIN_SRC erlang
 -type maybe_pair() :: {pair, event(), event()}
-                    | {singleton, event()}.
+                    | {unmatched_effect | unmatched_cause, event()}.
 #+END_SRC
 
 ** Forwarding traces from the remote node

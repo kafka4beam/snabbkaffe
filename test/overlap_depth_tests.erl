@@ -6,7 +6,7 @@
 -define(meta(TS), ?snk_meta => #{time => TS}).
 
 -define(p(A, B), {pair, #{?meta(A)}, #{?meta(B)}}).
--define(s(A), {singleton, #{?meta(A)}}).
+-define(s(A), {unmatched_cause, #{?meta(A)}}).
 
 -define(matchDepth(N, L),
         ?assertMatch(N, ?pair_max_depth(L))).
