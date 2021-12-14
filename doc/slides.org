@@ -414,7 +414,7 @@ Always wrap =?causality= and =?strict_causality= in =?assert=, unless there are 
 ?find_pairs(Strict, MatchCause, MatchEffect [, Guard] , Trace)
 #+end_src
 
-1) It returns a list of ={pair, Cause, Effect}= or ={singleton, Cause}=
+1) It returns a list of ={pair, Cause, Effect}= or ={unmatched_cause, Cause}= or ={unmatched_effect, Effect}=
 
 2) When =Strict= is =true= this macro also checks that effects don't occur before causes (much like =?causality=)
 

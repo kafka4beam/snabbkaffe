@@ -65,16 +65,15 @@
 -define(projection(FIELDS, TRACE),
         snabbkaffe:projection(FIELDS, TRACE)).
 
--define(find_pairs(STRICT, M1, M2, GUARD, TRACE),
-        snabbkaffe:find_pairs( STRICT
-                             , ?match_event(M1)
+-define(find_pairs(M1, M2, GUARD, TRACE),
+        snabbkaffe:find_pairs( ?match_event(M1)
                              , ?match_event(M2)
                              , ?snk_int_match_arg2(M1, M2, GUARD)
                              , (TRACE)
                              )).
 
--define(find_pairs(STRICT, M1, M2, TRACE),
-        ?find_pairs(STRICT, M1, M2, true, TRACE)).
+-define(find_pairs(M1, M2, TRACE),
+        ?find_pairs(M1, M2, true, TRACE)).
 
 -define(causality(M1, M2, GUARD, TRACE),
         snabbkaffe:causality( false

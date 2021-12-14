@@ -6,9 +6,11 @@
 
 ** Fixes
 - Fix compilation warnings
+- Improve output of =snabbkaffe:strictly_increasing= function
 
 ** Non-BC changes
-- Break compatibility with OTP20
+- API of =find_pairs= function and macro are heavily reworked: =Strict= flag has been removed and the return type has been changed.
+  Now they don't crash when they find an effect without a cause, but instead add it to the list.
 
 * 0.16.0
 ** Features

@@ -45,7 +45,7 @@
 -export([ events_of_kind/2
         , projection/2
         , erase_timestamps/1
-        , find_pairs/5
+        , find_pairs/4
         , causality/5
         , unique/1
         , projection_complete/3
@@ -90,7 +90,7 @@
 -type trace() :: [event()].
 
 -type maybe_pair() :: {pair, timed_event(), timed_event()}
-                    | {singleton, timed_event()}.
+                    | {unmatched_cause | unmatched_effect, timed_event()}.
 
 -type maybe(A) :: {just, A} | nothing.
 
@@ -247,13 +247,12 @@ erase_timestamps(Trace) ->
   [I #{?snk_meta => maps:without([time], maps:get(?snk_meta, I, #{}))} || I <- Trace].
 
 %% @doc Find pairs of complimentary events
--spec find_pairs( boolean()
-                , fun((event()) -> boolean())
+-spec find_pairs( fun((event()) -> boolean())
                 , fun((event()) -> boolean())
                 , fun((event(), event()) -> boolean())
                 , trace()
                 ) -> [maybe_pair()].
-find_pairs(Strict, CauseP, EffectP, Guard, L) ->
+find_pairs(CauseP, EffectP, Guard, L) ->
   Fun = fun(A) ->
             C = fun_matches1(CauseP, A),
             E = fun_matches1(EffectP, A),
@@ -264,7 +263,7 @@ find_pairs(Strict, CauseP, EffectP, Guard, L) ->
             end
         end,
   L1 = lists:filtermap(Fun, L),
-  do_find_pairs(Strict, Guard, L1).
+  do_find_pairs(Guard, L1).
 
 -spec run( run_config() | integer()
          , fun()
@@ -455,12 +454,22 @@ analyze_statistics() ->
                , trace()
                ) -> boolean().
 causality(Strict, CauseP, EffectP, Guard, Trace) ->
-  Pairs = find_pairs(true, CauseP, EffectP, Guard, Trace),
-  if Strict ->
-      [?panic("Cause without effect", #{cause => I})
-       || {singleton, I} <- Pairs];
-     true ->
-      ok
+  Pairs = find_pairs(CauseP, EffectP, Guard, Trace),
+  UnmatchedCauses = [Event || {unmatched_cause, Event} <- Pairs],
+  UnmatchedEffects = [Event || {unmatched_effect, Event} <- Pairs],
+  case {Strict, UnmatchedCauses, UnmatchedEffects} of
+    {false, _, []} ->
+      ok;
+    {false, _, _} ->
+      ?panic("Causality violation",
+             #{effects_without_cause => UnmatchedEffects});
+    {true, [], []} ->
+      ok;
+    {true, _, _} ->
+      ?panic("Causality violation",
+             #{ effects_without_cause => UnmatchedEffects
+              , causes_without_effect => UnmatchedCauses
+              })
   end,
   length(Pairs) > 0.
 
@@ -504,8 +513,10 @@ pair_max_depth(Pairs) ->
   TagPair =
     fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
         [{T1, 1}, {T2, -1}];
-       ({singleton, #{?snk_meta := #{time := T}}}) ->
-        [{T, 1}]
+       ({unmatched_cause, #{?snk_meta := #{time := T}}}) ->
+        [{T, 1}];
+       ({unmatched_effect, Event}) ->
+        ?panic("Unmatched effect", #{event => Event})
     end,
   L0 = lists:flatmap(TagPair, Pairs),
   L = lists:keysort(1, L0),
@@ -530,17 +541,19 @@ pair_max_depth(Pairs) ->
 strictly_increasing(L) ->
   case L of
     [Init|Rest] ->
-      Fun = fun(A, B) ->
-                A > B orelse
-                  ?panic("Elements of list are not strictly increasing",
-                         #{ '1st_element' => A
-                          , '2nd_element' => B
-                          , list => L
-                          }),
-                A
+      Fun = fun(Elem, {Prev, Errors}) when Elem > Prev ->
+                {Elem, Errors};
+               (Elem, {Prev, Errors}) ->
+                {Elem, [{Prev, Elem} | Errors]}
             end,
-      lists:foldl(Fun, Init, Rest),
-      true;
+      {_, Errors} = lists:foldl(Fun, {Init, []}, Rest),
+      case Errors of
+        [] ->
+          true;
+        _ ->
+          ?panic("Elements of list are not strictly increasing",
+                 #{order_violations => Errors})
+      end;
     [] ->
       false
   end.
@@ -581,8 +594,7 @@ run_stage(Run, Config) ->
     snabbkaffe_collector:wait_for_silence(Timeout),
     cancel_timetrap(Trap),
     Trace = snabbkaffe_collector:flush_trace(),
-    RunTime = ?find_pairs( false
-                         , #{?snk_kind := '$trace_begin'}
+    RunTime = ?find_pairs( #{?snk_kind := '$trace_begin'}
                          , #{?snk_kind := '$trace_end'}
                          , Trace
                          ),
@@ -639,30 +651,27 @@ run_trace_spec(Spec, Result, Trace) ->
   end.
 
 
--spec do_find_pairs( boolean()
-                   , fun((event(), event()) -> boolean())
+-spec do_find_pairs( fun((event(), event()) -> boolean())
                    , [{event(), boolean(), boolean()}]
                    ) -> [maybe_pair()].
-do_find_pairs(_Strict, _Guard, []) ->
+do_find_pairs(_Guard, []) ->
   [];
-do_find_pairs(Strict, Guard, [{A, C, E}|T]) ->
-  FindEffect = fun({B, _, true}) ->
-                   fun_matches2(Guard, A, B);
+do_find_pairs(Guard, [{Event, IsCause, IsEffect}|Rest]) ->
+  FindEffect = fun({PossibleEffect, _, true}) ->
+                   fun_matches2(Guard, Event, PossibleEffect);
                   (_) ->
                    false
                end,
-  case {C, E} of
+  case {IsCause, IsEffect} of
     {true, _} ->
-      case take(FindEffect, T) of
-        {{B, _, _}, T1} ->
-          [{pair, A, B}|do_find_pairs(Strict, Guard, T1)];
-        T1 ->
-          [{singleton, A}|do_find_pairs(Strict, Guard, T1)]
+      case take(FindEffect, Rest) of
+        {{Effect, _, _}, Rest1} ->
+          [{pair, Event, Effect}|do_find_pairs(Guard, Rest1)];
+        Rest1 ->
+          [{unmatched_cause, Event}|do_find_pairs(Guard, Rest1)]
       end;
-    {false, true} when Strict ->
-      ?panic("Effect occurs before cause", #{effect => A});
-    _ ->
-      do_find_pairs(Strict, Guard, T)
+    {false, true} ->
+      [{unmatched_effect, Event}|do_find_pairs(Guard, Rest)]
   end.
 
 -spec inc_counters([Key], Map) -> Map

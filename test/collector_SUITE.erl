@@ -154,8 +154,7 @@ t_pair_metric(_Config) when is_list(_Config) ->
   timer:sleep(10),
   [?tp(bar, #{i => I}) || I <- lists:seq(1, 100)],
   Trace = snabbkaffe:collect_trace(),
-  Pairs = ?find_pairs( true
-                     , #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
+  Pairs = ?find_pairs( #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
                      , Trace
                      ),
   snabbkaffe:push_stats(foo_bar, Pairs).
@@ -165,8 +164,7 @@ t_pair_metric_buckets(_Config) when is_list(_Config) ->
   timer:sleep(10),
   [?tp(bar, #{i => I}) || I <- lists:seq(1, 100)],
   Trace = snabbkaffe:collect_trace(),
-  Pairs = ?find_pairs( true
-                     , #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
+  Pairs = ?find_pairs( #{?snk_kind := foo, i := _I}, #{?snk_kind := bar, i := _I}
                      , Trace
                      ),
   snabbkaffe:push_stats(foo_bar, 10, Pairs).
