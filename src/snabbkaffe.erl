@@ -462,13 +462,13 @@ causality(Strict, CauseP, EffectP, Guard, Trace) ->
       ok;
     {false, _, _} ->
       ?panic("Causality violation",
-             #{effects_without_cause => UnmatchedEffects});
+             #{effects_without_cause => truncate_list(UnmatchedEffects)});
     {true, [], []} ->
       ok;
     {true, _, _} ->
       ?panic("Causality violation",
-             #{ effects_without_cause => UnmatchedEffects
-              , causes_without_effect => UnmatchedCauses
+             #{ effects_without_cause => truncate_list(UnmatchedEffects)
+              , causes_without_effect => truncate_list(UnmatchedCauses)
               })
   end,
   length(Pairs) > 0.
@@ -853,3 +853,17 @@ cancel_timetrap(undefined) ->
   ok;
 cancel_timetrap(Pid) when is_pid(Pid) ->
   exit(Pid, kill).
+
+-spec truncate_list(list()) -> list().
+truncate_list(L) ->
+  %% Note: -1 makes output unlimited
+  N = application:get_env(snabbkaffe, max_length, 10),
+  truncate_list(N, L).
+
+-spec truncate_list(non_neg_integer(), list()) -> list().
+truncate_list(_, []) ->
+  [];
+truncate_list(0, _) ->
+  ['...'];
+truncate_list(N, [A|L]) ->
+  [A | truncate_list(N - 1, L)].
