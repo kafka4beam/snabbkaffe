@@ -642,7 +642,11 @@ run_trace_spec(Spec, Result, Trace) ->
               logger:critical("~p failed: badfun", [Name]),
               false
           end,
-    Ret =:= true orelse Ret =:= ok
+    case Ret of
+      true -> true;
+      ok   -> true;
+      _    -> logger:critical("~p failed: invalid return value ~p", [Name, Ret]), false
+    end
   catch EC:Error ?BIND_STACKTRACE(Stack) ->
       ?GET_STACKTRACE(Stack),
       logger:critical("~p failed: ~p~n~p~nStacktrace: ~p~n",
