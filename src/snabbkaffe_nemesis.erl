@@ -125,7 +125,7 @@ start_link() ->
 %% @equiv inject_crash(Predicate, Scenario, notmyday)
 -spec inject_crash(snabbkaffe:predicate(), fault_scenario()) -> reference().
 inject_crash(Predicate, Scenario) ->
-  inject_crash(Predicate, Scenario, notmayday).
+  inject_crash(Predicate, Scenario, notmyday).
 
 %% @doc Inject crash into the system
 -spec inject_crash(snabbkaffe:predicate(), fault_scenario(), term()) -> reference().
