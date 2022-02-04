@@ -1,3 +1,7 @@
+* 0.18.0
+** Features
+- Introduce =snabbkaffe:increasing= and =snabbkaffe:check_conseq_relation= functions
+
 * 0.17.0
 
 ** Features

@@ -1,5 +1,5 @@
+%% Copyright 2021-2022 snabbkaffe contributors
 %% Copyright 2019-2020 Klarna Bank AB
-%% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -53,7 +53,9 @@
         , pair_max_depth/1
         , inc_counters/2
         , dec_counters/2
+        , increasing/1
         , strictly_increasing/1
+        , check_conseq_relation/3
         ]).
 
 -export([ mk_all/1
@@ -539,20 +541,54 @@ pair_max_depth(Pairs) ->
 %% '''
 -spec strictly_increasing(list()) -> boolean().
 strictly_increasing(L) ->
+  check_conseq_relation( "Elements of list are not strictly increasing"
+                       , fun(Prev, Elem) -> Elem > Prev end
+                       , L
+                       ).
+
+%% @doc Throws an exception when elements of the list are not
+%% increasing. Otherwise, returns `true' if the list is non-empty, and
+%% `false' when it is empty.
+%%
+%% Example:
+%% ```
+%% SeqNums = ?projection(sequence_number, ?of_kind(handle_message, Trace)),
+%% ?assert(snabbkaffe:increasing(SeqNums)),
+%% '''
+-spec increasing(list()) -> boolean().
+increasing(L) ->
+  check_conseq_relation( "Elements of list are not increasing"
+                       , fun(Prev, Elem) -> Elem >= Prev end
+                       , L
+                       ).
+
+%% @doc Throws an exception when consequitive elements of the list do
+%% not comply a binary relationship. Otherwise, returns `true' if the
+%% list is non-empty, and `false' when it is empty.
+%%
+%% Example:
+%% ```
+%% SeqNums = ?projection(sequence_number, ?of_kind(handle_message, Trace)),
+%% ?assert(snabbkaffe:check_conseq_relation(SeqNums)),
+%% '''
+-spec check_conseq_relation(string(), fun((A, A) -> boolean()), [A]) -> boolean().
+check_conseq_relation(ErrorMsg, Relation, L) ->
   case L of
     [Init|Rest] ->
-      Fun = fun(Elem, {Prev, Errors}) when Elem > Prev ->
-                {Elem, Errors};
-               (Elem, {Prev, Errors}) ->
-                {Elem, [{Prev, Elem} | Errors]}
+      Fun = fun(Elem, {Prev, Errors}) ->
+                case Relation(Prev, Elem) of
+                  true ->
+                    {Elem, Errors};
+                  false ->
+                    {Elem, [{Prev, Elem} | Errors]}
+                end
             end,
       {_, Errors} = lists:foldl(Fun, {Init, []}, Rest),
       case Errors of
         [] ->
           true;
         _ ->
-          ?panic("Elements of list are not strictly increasing",
-                 #{order_violations => Errors})
+          ?panic(ErrorMsg, #{improper_pairs => Errors})
       end;
     [] ->
       false

@@ -40,6 +40,13 @@ strictly_increasing_test() ->
   ?assertError(_, snabbkaffe:strictly_increasing([1, 2, 5, 3])),
   ?assertError(_, snabbkaffe:strictly_increasing([1, 2, 2, 3])).
 
+increasing_test() ->
+  ?assertNot(snabbkaffe:increasing([])),
+  ?assert(snabbkaffe:increasing([1])),
+  ?assert(snabbkaffe:increasing([1, 2, 5, 6])),
+  ?assert(snabbkaffe:increasing([1, 2, 2, 3])),
+  ?assertError(_, snabbkaffe:increasing([1, 2, 5, 3])).
+
 get_cfg_test() ->
   Cfg1 = [{proper, [ {numtests, 1000}
                    , {timeout, 42}
