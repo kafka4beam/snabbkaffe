@@ -1,0 +1,82 @@
+
+
+## Benchmarking with snabbkaffe
+Snabbkaffe automatically adds timestamps to the events, which makes it a "very unscientific benchmarking" library.
+
+There is a family of functions for reporting metric data.
+
+Report a scalar metric called `my_metric1`:
+
+```erlang
+snabbkaffe:push_stat(my_metric1, 42),
+snabbkaffe:push_stats(my_metric1, [42, 43, 42]),
+%% Or even:
+snabbkaffe:push_stats(my_metric1, [{pair, Event1, Event2}, {pair, Event3, Event4}, ...]),
+```
+
+Sometimes it is entertaining to see how metric value depends on the size of the input data:
+
+```erlang
+snabbkaffe:push_stat(my_metric1, SizeOfData, 42),
+snabbkaffe:push_stats(my_metric1, SizeOfData, [42, 43, 42])
+```
+
+Metrics are printed using `snabbkaffe:analyze_statistics/0`.
+
+`bucket` option of `?check_trace` macro is used to automatically collect statistics of the run stage execution time:
+
+```erlang
+collect_stats_test() ->
+  snabbkaffe:stop(),
+  Config = #{proper => #{ max_size => 10
+                        , numtests => 100
+                        }},
+  Prop =
+    ?forall_trace(
+       L, list(),
+       %% Bucket:
+       length(L),
+       %% Run stage:
+       begin
+         timer:sleep(length(L))
+       end,
+       %% Check stage:
+       []),
+  ?run_prop(Config, Prop),
+  snabbkaffe:analyze_statistics().
+```
+
+This testcase prints the following data to the console:
+
+```txt
+Statisitics of run_time
+0.000000 ^
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+         |
+       0 *------*------*------*------*------*------*------*------*------*------*
+         0                                                                    90
+
+         N    avg
+         0 0.00000e+0
+         9 0.00000e+0
+        18 0.00000e+0
+        27 0.00000e+0
+        36 0.00000e+0
+        45 0.00000e+0
+        54 0.00000e+0
+        63 0.00000e+0
+        72 3.33333e-8
+        81 0.00000e+0
+        90 0.00000e+0
+```

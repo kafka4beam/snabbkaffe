@@ -12,6 +12,8 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
+
+%% @doc This is the main API module
 -module(snabbkaffe).
 
 -include("snabbkaffe_internal.hrl").
@@ -188,7 +190,7 @@ wait_async_action(Action, Predicate, Timeout) ->
 %%
 %% ```trigger_produce_event_async(),
 %%    snabbkaffe:block_until(MatchEvent, 1000)
-%% ```
+%% '''
 %%
 %% there is a possible situation when the event is emitted before
 %% `block_until' function has a chance to run. In this case the latter

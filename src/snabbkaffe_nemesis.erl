@@ -72,10 +72,8 @@
 %%% Types
 %%%===================================================================
 
-%% @doc
 %% Type of fault patterns, such as "always fail", "fail randomly" or
 %% "recover after N attempts"
-%% @end
 %%
 %% This type is pretty magical. For performance reasons, state of the
 %% failure scenario is encoded as an integer counter, that is

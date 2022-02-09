@@ -5,9 +5,23 @@ CONCUERROR_RUN := $(CONCUERROR) \
 	-x code -x code_server -x error_handler \
 	-pa $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/ebin
 
-.PHONY: compile
-compile:
+GEN_TESTS=$(patsubst doc/src/%.md, test/%_example.erl, $(wildcard doc/src/*.md))
+
+.PHONY: all
+all: $(GEN_TESTS)
 	rebar3 do dialyzer, eunit, ct --sname snk_main, xref
+
+.PHONY: doc
+doc:
+	rebar3 as dev ex_doc
+
+.PHONY: clean
+clean:
+	rm -rf _build/
+	rm test/*_example.erl
+
+test/%_example.erl: doc/src/%.md doc/src/extract_tests
+	./doc/src/extract_tests $< > $@
 
 concuerror = \
 	@echo "\n=========================================\nRunning $(1)\n=========================================\n"; \
