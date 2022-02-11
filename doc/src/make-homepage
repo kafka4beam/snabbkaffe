@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+VERSION="${1}"
+REDIRECT="${VERSION}/index.html"
+cat <<EOF
+<html>
+<head>
+<meta http-equiv="refresh" content="0; url=${REDIRECT}" />
+</head>
+<body>
+<a href="${REDIRECT}">Click here to read the documentation for the latest version</a>
+</body>
+</html>
+EOF
