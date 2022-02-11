@@ -1,6 +1,8 @@
 Snabbkaffe
 ==========
 
+[Check documentation for the latest version.](https://kafka4beam.github.io/snabbkaffe-docs)
+
 Snabbkaffe is a trace-based test framework for Erlang.
 
 It works like this:

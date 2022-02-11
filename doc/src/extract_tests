@@ -8,11 +8,11 @@ BEGIN {
 }
 
 {
-    if (isSrcBlockStart && ($0 ~ /_test_?\(\) ->$/ || $0 ~ "^-module")) {
+    if (isSrcBlockStart && ($0 ~ /_test_?\(\) *->$/ || $0 ~ /^-module/)) {
         # Beginning of the src block
         isEmpty = 0
         printLine = 1
-    } else if ($0 ~ /^```[:space:]*$/) {
+    } else if ($0 ~ /^``` *$/) {
         # End of the src block
         printLine = 0
         print ""
