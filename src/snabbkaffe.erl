@@ -165,10 +165,10 @@ collect_trace(Timeout) ->
   snabbkaffe_collector:wait_for_silence(Timeout),
   snabbkaffe_collector:flush_trace().
 
-%% @equiv block_until(Filter, Timeout, 100)
+%% @equiv block_until(Filter, Timeout, infinity)
 -spec block_until(filter(), timeout()) -> {ok, event()} | timeout.
 block_until(Filter, Timeout) ->
-  block_until(Filter, Timeout, 100).
+  block_until(Filter, Timeout, infinity).
 
 -spec wait_async_action(fun(() -> Return), predicate(), timeout()) ->
                            {Return, {ok, event()} | timeout}.
@@ -215,11 +215,13 @@ start_trace() ->
       ok
   end.
 
+%% @doc Stop snabbkaffe
 -spec stop() -> ok.
 stop() ->
   snabbkaffe_sup:stop(),
   ok.
 
+%% @doc Cleanup the trace and the injected crashes and schedulings
 -spec cleanup() -> ok.
 cleanup() ->
   _ = collect_trace(0),
@@ -240,12 +242,14 @@ events_of_kind([C|_] = Kind, Events) when is_integer(C) -> % Handle strings
 events_of_kind(Kinds, Events) ->
   [E || E = #{?snk_kind := Kind} <- Events, lists:member(Kind, Kinds)].
 
+%% @doc Extract specified field(s) from the list of events
 -spec projection([atom()] | atom(), trace()) -> list().
 projection(Field, Trace) when is_atom(Field) ->
   [maps:get(Field, I) || I <- Trace];
 projection(Fields, Trace) ->
   [list_to_tuple([maps:get(F, I) || F <- Fields]) || I <- Trace].
 
+%% @doc Remove timestamps from the trace events
 -spec erase_timestamps(trace()) -> trace().
 erase_timestamps(Trace) ->
   [I #{?snk_meta => maps:without([time], maps:get(?snk_meta, I, #{}))} || I <- Trace].
@@ -269,6 +273,7 @@ find_pairs(CauseP, EffectP, Guard, L) ->
   L1 = lists:filtermap(Fun, L),
   do_find_pairs(Guard, L1).
 
+%% @private Execute a testcase
 -spec run( run_config() | integer()
          , fun()
          , fun()
@@ -287,6 +292,7 @@ run(Config, Run, Check) ->
       Err
   end.
 
+%% @private
 -spec proper_printout(string(), list()) -> _.
 proper_printout(Char, []) when Char =:= ".";
                                Char =:= "x";
@@ -345,23 +351,26 @@ mk_all(Module) ->
           _         -> false
         end].
 
+%% @doc Retry an action until success, at max N times with an interval
+%% `Interval'
 -spec retry(integer(), non_neg_integer(), fun(() -> Ret)) -> Ret.
 retry(_, 0, Fun) ->
   Fun();
-retry(Timeout, N, Fun) ->
+retry(Interval, N, Fun) ->
   try Fun()
   catch
     EC:Err ?BIND_STACKTRACE(Stack) ->
       ?GET_STACKTRACE(Stack),
-      timer:sleep(Timeout),
+      timer:sleep(Interval),
       logger:debug(#{ what => retry_fun
                     , ec => EC
                     , error => Err
                     , stacktrace => Stack
                     }),
-      retry(Timeout, N - 1, Fun)
+      retry(Interval, N - 1, Fun)
   end.
 
+%% @private
 -spec get_cfg([atom()], map() | proplists:proplist(), A) -> A.
 get_cfg([Key|T], Cfg, Default) when is_list(Cfg) ->
   case lists:keyfind(Key, 1, Cfg) of
@@ -376,6 +385,7 @@ get_cfg([Key|T], Cfg, Default) when is_list(Cfg) ->
 get_cfg(Key, Cfg, Default) when is_map(Cfg) ->
   get_cfg(Key, maps:to_list(Cfg), Default).
 
+%% @doc Redirect all the logs to the console
 -spec fix_ct_logging() -> ok.
 -ifdef(OTP_RELEASE).
 %% OTP21+, we have logger:
@@ -417,20 +427,24 @@ fix_ct_logging() ->
 %% Statistical functions
 %%====================================================================
 
+%% @doc Report a scalar metric
 -spec push_stat(metric(), number()) -> ok.
 push_stat(Metric, Num) ->
   snabbkaffe_collector:push_stat(Metric, undefined, Num).
 
+%% @doc Report a metric with an X value
 -spec push_stat(metric(), number() | undefined, number()) -> ok.
 push_stat(Metric, X, Y) ->
   maybe_rpc(snabbkaffe_collector, push_stat, [Metric, X, Y]).
 
+%% @doc Report multiple values
 -spec push_stats(metric(), number(), [maybe_pair()] | number()) -> ok.
 push_stats(Metric, Bucket, Pairs) ->
   lists:foreach( fun(Val) -> push_stat(Metric, Bucket, Val) end
                , transform_stats(Pairs)
                ).
 
+%% @doc Report metrics from pairs of events
 -spec push_stats(metric(), [maybe_pair()] | number()) -> ok.
 push_stats(Metric, Pairs) ->
   lists:foreach( fun(Val) -> push_stat(Metric, Val) end
@@ -442,6 +456,7 @@ get_stats() ->
   {ok, Stats} = gen_server:call(snabbkaffe_collector, get_stats, infinity),
   Stats.
 
+%% @doc Print metrics to the console
 analyze_statistics() ->
   Stats = get_stats(),
   maps:map(fun analyze_metric/2, Stats),
@@ -477,6 +492,7 @@ causality(Strict, CauseP, EffectP, Guard, Trace) ->
   end,
   length(Pairs) > 0.
 
+%% @doc Throw an exception if some event is repeated
 -spec unique(trace()) -> true.
 unique(Trace) ->
   Trace1 = erase_timestamps(Trace),
@@ -666,6 +682,7 @@ check_stage(Specs, Result, Trace) ->
       {error, check_stage_failed}
   end.
 
+%% @private
 run_trace_spec(Spec, Result, Trace) ->
   case Spec of
     {Name, Fun} -> ok;
@@ -692,7 +709,7 @@ run_trace_spec(Spec, Result, Trace) ->
       false
   end.
 
-
+%% @private
 -spec do_find_pairs( fun((event(), event()) -> boolean())
                    , [{event(), boolean(), boolean()}]
                    ) -> [maybe_pair()].
@@ -716,6 +733,7 @@ do_find_pairs(Guard, [{Event, IsCause, IsEffect}|Rest]) ->
       [{unmatched_effect, Event}|do_find_pairs(Guard, Rest)]
   end.
 
+%% @private
 -spec inc_counters([Key], Map) -> Map
         when Map :: #{Key => integer()}.
 inc_counters(Keys, Map) ->
@@ -727,6 +745,7 @@ inc_counters(Keys, Map) ->
              , Keys
              ).
 
+%% @private
 -spec dec_counters([Key], Map) -> Map
         when Map :: #{Key => integer()}.
 dec_counters(Keys, Map) ->
@@ -738,6 +757,7 @@ dec_counters(Keys, Map) ->
              , Keys
              ).
 
+%% @private
 -spec fun_matches1(fun((A) -> boolean()), A) -> boolean().
 fun_matches1(Fun, A) ->
   try Fun(A)
@@ -745,6 +765,7 @@ fun_matches1(Fun, A) ->
     error:function_clause -> false
   end.
 
+%% @private
 -spec fun_matches2(fun((A, B) -> boolean()), A, B) -> boolean().
 fun_matches2(Fun, A, B) ->
   try Fun(A, B)
@@ -766,6 +787,7 @@ take(Pred, [A|T], Acc) ->
       take(Pred, T, [A|Acc])
   end.
 
+%% @private
 analyze_metric(MetricName, DataPoints = [N|_]) when is_number(N) ->
   %% This is a simple metric:
   Mean = mean(DataPoints),
@@ -819,6 +841,7 @@ analyze_metric(MetricName, Datapoints = [{_, _}|_]) ->
       logger:info("Stats:~n~p~n", [Last])
   end.
 
+%% @private
 transform_stats(Data) ->
   Fun = fun({pair, #{?snk_meta := #{time := T1}}, #{?snk_meta := #{time := T2}}}) ->
             Dt = erlang:convert_time_unit( T2 - T1
@@ -843,11 +866,13 @@ splitwith_(Pred, [Hd|Tail], Taken) ->
 splitwith_(_Pred, [], Taken) ->
   {lists:reverse(Taken), []}.
 
+%% @private
 mean([]) ->
   0;
 mean(L = [_|_]) ->
   lists:sum(L) / length(L).
 
+%% @private
 get_metadata() ->
   Meta = case logger:get_process_metadata() of
             undefined -> #{};
@@ -855,6 +880,7 @@ get_metadata() ->
           end,
   Meta #{node => node(), pid => self(), gl => group_leader()}.
 
+%% @private
 -spec maybe_rpc(module(), _Function :: atom(), _Args :: list()) -> term().
 maybe_rpc(M, F, A) ->
   case persistent_term:get(?PT_REMOTE, undefined) of
@@ -862,6 +888,7 @@ maybe_rpc(M, F, A) ->
     Remote    -> rpc:call(Remote, M, F, A)
   end.
 
+%% @private
 -spec timetrap(map()) -> pid() | undefined.
 timetrap(#{timetrap := Timeout}) ->
   Parent = self(),
@@ -886,18 +913,21 @@ timetrap(#{timetrap := Timeout}) ->
 timetrap(_) ->
   undefined.
 
+%% @private
 -spec cancel_timetrap(pid() | undefined) -> ok.
 cancel_timetrap(undefined) ->
   ok;
 cancel_timetrap(Pid) when is_pid(Pid) ->
   exit(Pid, kill).
 
+%% @private
 -spec truncate_list(list()) -> list().
 truncate_list(L) ->
   %% Note: -1 makes output unlimited
   N = application:get_env(snabbkaffe, max_length, 10),
   truncate_list(N, L).
 
+%% @private
 -spec truncate_list(non_neg_integer(), list()) -> list().
 truncate_list(_, []) ->
   [];
