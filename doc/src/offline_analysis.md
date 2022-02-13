@@ -255,3 +255,8 @@ projection_test() ->
 ```erlang
 ?give_or_take(_Expected = 20, _Deviation = 2, Value)
 ```
+
+## snabbkaffe:unique/1
+
+`snabbkaffe:unique(Trace)` will raise an exception of some event in the trace is repeated.
+It ignores the timestamps.
