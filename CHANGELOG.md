@@ -1,4 +1,11 @@
 # Changelog
+## 1.0.0
+### Features
+- Publish documentation
+### Fixes
+- `snabbkaffe_collector:subscribe` and `receive_events` have been moved to `snabbkaffe` module
+- Fix off-by-one error in `snabbkaffe_nemesis:periodic_crash/3`
+
 ## 0.18.0
 ### Features
 - Introduce `snabbkaffe:increasing` and `snabbkaffe:check_conseq_relation` functions

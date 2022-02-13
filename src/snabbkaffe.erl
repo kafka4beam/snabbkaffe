@@ -29,6 +29,11 @@
         , dump_trace/1
         , block_until/2
         , block_until/3
+        , subscribe/4
+        , subscribe/3
+        , subscribe/2
+        , subscribe/1
+        , receive_events/1
         , wait_async_action/3
         , push_stat/2
         , push_stat/3
@@ -170,6 +175,8 @@ collect_trace(Timeout) ->
 block_until(Filter, Timeout) ->
   block_until(Filter, Timeout, infinity).
 
+%% @doc Install a listener for the event matching `Predicate', execute
+%% an action, then wait for the event to arrive, or until `Timeout'.
 -spec wait_async_action(fun(() -> Return), predicate(), timeout()) ->
                            {Return, {ok, event()} | timeout}.
 wait_async_action(Action, Predicate, Timeout) ->
@@ -205,6 +212,40 @@ wait_async_action(Action, Predicate, Timeout) ->
                      event() | timeout.
 block_until(Filter, Timeout, BackInTime) ->
   snabbkaffe_collector:block_until(Filter, Timeout, BackInTime).
+
+%% @equiv subscribe(Predicate, 1, infinity, 0)
+-spec subscribe(snabbkaffe:predicate()) ->
+        {ok, snabbkaffe_collector:subscription()}.
+subscribe(Predicate) ->
+  subscribe(Predicate, _NEvents = 1, _Timeout = infinity, _BackInTime = 0).
+
+%% @equiv subscribe(Predicate, 1, Timeout, 0)
+-spec subscribe(snabbkaffe:predicate(), timeout()) ->
+        {ok, snabbkaffe_collector:subscription()}.
+subscribe(Predicate, Timeout) ->
+  subscribe(Predicate, _NEvents = 1, Timeout, 0).
+
+%% @equiv subscribe(Predicate, NEvents, Timeout, 0)
+-spec subscribe(snabbkaffe:predicate(), non_neg_integer(), timeout()) ->
+        {ok, snabbkaffe_collector:subscription()}.
+subscribe(Predicate, NEvents, Timeout) ->
+  subscribe(Predicate, NEvents, Timeout, 0).
+
+%% @doc Subscribe to events matching `Predicate`, receive `NEvents' of
+%% this type, or until `Timeout' happens, look at most `BackInTime'
+%% milliseconds into the past.
+%%
+%% The events can be received using `receive_events/1' function.
+-spec subscribe(snabbkaffe:predicate(), non_neg_integer(), timeout(), timeout()) ->
+        {ok, snabbkaffe_collector:subscription()}.
+subscribe(Predicate, NEvents, Timeout, BackInTime) ->
+  snabbkaffe_collector:subscribe(Predicate, NEvents, Timeout, BackInTime).
+
+%% @doc Receive the events for a subscription `SubRef'
+-spec receive_events(snabbkaffe_collector:subscription()) ->
+        {ok | timeout, [snabbkaffe:event()]}.
+receive_events(SubRef) ->
+  snabbkaffe_collector:receive_events(SubRef).
 
 -spec start_trace() -> ok.
 start_trace() ->

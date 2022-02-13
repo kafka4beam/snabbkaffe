@@ -1,4 +1,4 @@
-%% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2019-2020, 2022 Klarna Bank AB
 %% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,7 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% @doc This module controls the event collection
+%% @private This module controls the event collection
 -module(snabbkaffe_collector).
 
 -include("snabbkaffe_internal.hrl").

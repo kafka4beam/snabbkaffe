@@ -10,8 +10,15 @@ It is also useful for testing state machines _in situ_: it can delay state trans
 ## ?force_ordering
 
 ```erlang
-?force_ordering(ContinuePattern [, NEvents], DelayedPattern [, Guard])
+?force_ordering(ContinuePattern [, N], DelayedPattern [, Guard])
 ```
+
+Parameters:
+- `ContinuePattern`: match pattern for the event that should happen first.
+- `N` (optional): number of event matching `ContinuePattern` that should happen first.
+  Defaults to 1.
+- `DelayedPattern`: match pattern for the events that will be delayed until N `ContinuePattern` events are emitted.
+- `Guard` (optional): guard function similar to that in `?strict_causality` pattern.
 
 Example:
 ```erlang
