@@ -60,13 +60,17 @@ t_recover(Config) when is_list(Config) ->
      end).
 
 t_periodic(Config) when is_list(Config) ->
-  F1 = snabbkaffe_nemesis:periodic_crash(5, 0.6, 0),
-  ?assertEqual( [false, false, false, true, true, false, false, false, true, true]
-              , [F1(I) || I <- lists:seq(1, 10)]
+  F1 = snabbkaffe_nemesis:periodic_crash(4, 0.5, 0),
+  ?assertEqual( [false, false, true, true, false, false, true, true]
+              , [F1(I) || I <- lists:seq(0, 7)]
               ),
-  F2 = snabbkaffe_nemesis:periodic_crash(5, 0.6, math:pi()),
+  F2 = snabbkaffe_nemesis:periodic_crash(4, 0.5, math:pi()),
+  ?assertEqual( [true, true, false, false, true, true, false, false]
+              , [F2(I) || I <- lists:seq(0, 7)]
+              ),
+  F3 = snabbkaffe_nemesis:periodic_crash(5, 0.6, math:pi()),
   ?assertEqual( [true, true, false, false, false, true, true, false, false, false]
-              , [F2(I) || I <- lists:seq(1, 10)]
+              , [F3(I) || I <- lists:seq(0, 9)]
               ).
 
 %% Check that error can be injected at random trace point

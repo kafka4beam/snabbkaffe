@@ -237,7 +237,7 @@ periodic_crash(Period, DutyCycle, Phase) ->
   DC = DutyCycle * Period,
   P = round(Phase/(math:pi()*2)*Period),
   fun(X) ->
-      (X + P - 1) rem Period >= DC
+      (X + P) rem Period >= DC
   end.
 
 %%%===================================================================
