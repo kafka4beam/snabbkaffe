@@ -180,7 +180,7 @@ It returns a tuple `{ActionResult, {ok, Event}}` or `{ActionResult, timeout}`.
 
 When the testcase gets really complicated, and it has to wait for multiple events of different kinds, the simple macros may not be enough.
 In this section we will introduce the most flexible of the real time trace inspection APIs.
-A pair of `snabbkaffe_collector:subscribe/3` and `snabbkaffe_collector:receive_events/1` functions can be used in the tricky situations.
+A pair of `snabbkaffe:subscribe/3` and `snabbkaffe:receive_events/1` functions can be used in the tricky situations.
 The first one installs a watcher that will wait for a specified number of events matching a pattern.
 The second function takes an opaque reference returned by the first call, and blocks execution until the events are produced, or until timeout.
 
@@ -188,16 +188,15 @@ The second function takes an opaque reference returned by the first call, and bl
 subscribe_receive_test() ->
   ?check_trace(
      begin
-       {ok, SubRef} = snabbkaffe_collector:subscribe(?match_event(#{?snk_kind := complete}),
-                                                     _NEvents    = 2,
-                                                     _Timeout    = infinity,
-                                                     _BackInTime = 0),
+       {ok, SubRef} = snabbkaffe:subscribe(?match_event(#{?snk_kind := complete}),
+                                           _NEvents    = 2,
+                                           _Timeout    = infinity),
        spawn(fun async_action/0),
        spawn(fun async_action/0),
        ?assertMatch({ok, [#{?snk_kind := complete},
                           #{?snk_kind := complete}
                          ]},
-                    snabbkaffe_collector:receive_events(SubRef))
+                    snabbkaffe:receive_events(SubRef))
      end,
      []).
 ```
