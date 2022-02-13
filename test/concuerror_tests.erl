@@ -66,11 +66,11 @@ block_until_multiple_events_test() ->
                  ?tp(foo, #{n => 1}),
                  ?tp(foo, #{n => 2})
              end),
-       {ok, Sub} = snabbkaffe_collector:subscribe(?match_event(#{?snk_kind := foo}), 2, infinity, infinity),
+       {ok, Sub} = snabbkaffe:subscribe(?match_event(#{?snk_kind := foo}), 2, infinity, infinity),
        ?assertMatch( {ok, [ #{?snk_kind := foo, n := 1}
                           , #{?snk_kind := foo, n := 2}
                           ]}
-                   , snabbkaffe_collector:receive_events(Sub)),
+                   , snabbkaffe:receive_events(Sub)),
        ensure_no_messages()
      end,
      fun(_, Trace) ->

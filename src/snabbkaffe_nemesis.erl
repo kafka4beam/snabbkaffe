@@ -1,4 +1,4 @@
-%% Copyright 2019-2020 Klarna Bank AB
+%% Copyright 2019-2020, 2022 Klarna Bank AB
 %% Copyright 2021 snabbkaffe contributors
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,10 +72,8 @@
 %%% Types
 %%%===================================================================
 
-%% @doc
 %% Type of fault patterns, such as "always fail", "fail randomly" or
 %% "recover after N attempts"
-%% @end
 %%
 %% This type is pretty magical. For performance reasons, state of the
 %% failure scenario is encoded as an integer counter, that is
@@ -118,7 +116,7 @@
 %%% API
 %%%===================================================================
 
-%% @doc Start the server
+%% @private Start the server
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
@@ -149,8 +147,8 @@ fix_crash(Ref) ->
 cleanup() ->
   gen_server:call(?SERVER, cleanup, infinity).
 
-%% @doc Check if there are any injected crashes that match this data,
-%% and respond with the crash reason if so.
+%% @private Check if there are any injected crashes that match this
+%% data, and respond with the crash reason if so.
 -spec maybe_crash(fault_key(), map()) -> ok.
 maybe_crash(Key, Data) ->
   [begin
@@ -178,7 +176,7 @@ maybe_crash(Key, Data) ->
       Pred(Data)],
   ok.
 
-%% @doc Inject delay into the system
+%% @doc Inject scheduling into the system
 -spec force_ordering(snabbkaffe:predicate(), non_neg_integer(), snabbkaffe:predicate2()) -> reference().
 force_ordering(DelayPredicate, NEvents, ContinuePredicate) when NEvents > 0 ->
   Ref = make_ref(),
@@ -190,7 +188,7 @@ force_ordering(DelayPredicate, NEvents, ContinuePredicate) when NEvents > 0 ->
   ok = gen_server:call(?SERVER, {force_ordering, Delay}, infinity),
   Ref.
 
-%% @doc Check if the trace point should be delayed.
+%% @private Check if the trace point should be delayed.
 -spec maybe_delay(map()) -> ok.
 maybe_delay(Event) ->
   [snabbkaffe_collector:block_until( {fun(WU) -> ContP(Event, WU) end, NEvents}
@@ -215,12 +213,14 @@ always_crash() ->
       true
   end.
 
+%% @doc Crash N times consequently, then recover
 -spec recover_after(non_neg_integer()) -> fault_scenario().
 recover_after(Times) ->
   fun(X) ->
       X =< Times
   end.
 
+%% @doc Crash with probability P
 -spec random_crash(float()) -> fault_scenario().
 random_crash(CrashProbability) ->
   fun(X) ->
@@ -237,7 +237,7 @@ periodic_crash(Period, DutyCycle, Phase) ->
   DC = DutyCycle * Period,
   P = round(Phase/(math:pi()*2)*Period),
   fun(X) ->
-      (X + P - 1) rem Period >= DC
+      (X + P) rem Period >= DC
   end.
 
 %%%===================================================================

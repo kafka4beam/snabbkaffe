@@ -5,9 +5,19 @@ CONCUERROR_RUN := $(CONCUERROR) \
 	-x code -x code_server -x error_handler \
 	-pa $(BUILD_DIR)/concuerror+test/lib/snabbkaffe/ebin
 
-.PHONY: compile
-compile:
+GEN_TESTS=$(patsubst doc/src/%.md, test/%_example.erl, $(wildcard doc/src/*.md))
+
+.PHONY: all
+all: $(GEN_TESTS)
 	rebar3 do dialyzer, eunit, ct --sname snk_main, xref
+
+.PHONY: clean
+clean:
+	rm -rf _build/
+	rm test/*_example.erl
+
+test/%_example.erl: doc/src/%.md doc/src/extract_tests
+	./doc/src/extract_tests $< > $@
 
 concuerror = \
 	@echo "\n=========================================\nRunning $(1)\n=========================================\n"; \
@@ -31,3 +41,35 @@ $(CONCUERROR):
 	mkdir -p _build/
 	cd _build && git clone https://github.com/parapluu/Concuerror.git
 	$(MAKE) -C _build/Concuerror/
+
+##########################################################################################
+## Documentation
+##########################################################################################
+
+DOCROOT := _build/snabbkaffe-docs
+VSN := $(shell git describe --tags)
+OUTDIR := "$(DOCROOT)/$(VSN)"
+
+.PHONY: doc
+doc:
+	rebar3 as dev ex_doc
+
+.PHONY: doc-publish
+doc-publish: $(DOCROOT)/index.html
+
+$(DOCROOT)/index.html: doc $(OUTDIR) doc/src/make-homepage
+	cp -R doc/dist $(OUTDIR)
+	cp doc/*.html $(OUTDIR)
+	doc/src/make-homepage $(VSN) > $@
+	cd $(DOCROOT) && \
+	git add --all && \
+	git commit -m "Add documentation for version $(VSN)" && \
+	git push --force
+
+$(OUTDIR): $(DOCROOT)
+	@mkdir -p $(OUTDIR) 	# TODO clean the directory
+
+$(DOCROOT):
+	@mkdir -p _build && \
+	cd _build && \
+	git clone git@github.com:kafka4beam/snabbkaffe-docs.git

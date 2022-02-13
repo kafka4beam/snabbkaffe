@@ -1,4 +1,5 @@
 .eunit
+ebin
 deps
 *.o
 *.beam
@@ -14,6 +15,9 @@ TAGS
 rebar3.crashdump
 snabbkaffe
 rebar.lock
-doc/_minted-slides
 *.pdf
 *.tex
+test/*_example.erl
+doc/*
+!doc/src
+!doc/src/*
