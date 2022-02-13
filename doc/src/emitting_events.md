@@ -86,18 +86,18 @@ It produces the following trace events:
 
 ```erlang
 #{ ?snk_kind => foo
-  , ?snk_meta => #{ ... }
-  , ?snk_span => start
-  , field1 => 42
-  , field2 => foo
-  },
+ , ?snk_meta => #{ ... }
+ , ?snk_span => start
+ , field1 => 42
+ , field2 => foo
+ },
 ...
- #{ ?snk_kind => foo
-  , ?snk_meta => #{ ... }
-  , ?snk_span => {complete, ReturnValue}
-  , field1 => 42
-  , field2 => foo
-  }
+#{ ?snk_kind => foo
+ , ?snk_meta => #{ ... }
+ , ?snk_span => {complete, ReturnValue}
+ , field1 => 42
+ , field2 => foo
+ }
 ```
 
 Log level for the span can be specified like in the previous example.

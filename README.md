@@ -22,6 +22,8 @@ This approach can be used in a component test involving an ensemble of interacti
  + Checks are independent from each other and fully composable
  + Trace contains complete history of the process execution, thus making certain types of concurrency bugs, like livelocks, easier to detect
 
+Additionally, snabbkaffe supports fault and delay injection into the system to test correctness of the supervision trees and rare code paths.
+
 ## Getting started
 
 Add the following to `rebar.config`:
