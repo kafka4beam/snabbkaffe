@@ -29,5 +29,5 @@ Additionally, snabbkaffe supports fault and delay injection into the system to t
 Add the following to `rebar.config`:
 
 ```erlang
-{deps, [{snabbkaffe, {git, "https://github.com/kafka4beam/snabbkaffe.git", {tag, "0.18.0"}}}]}.
+{deps, [{snabbkaffe, {git, "https://github.com/kafka4beam/snabbkaffe.git", {tag, "1.0.0"}}}]}.
 ```
