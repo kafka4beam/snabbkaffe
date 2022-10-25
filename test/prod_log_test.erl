@@ -14,3 +14,7 @@ trace_prod_test() ->
            begin
              40 + 2
            end).
+
+no_unused_variables_test() ->
+  A = 1, %% This variable should not be recognized as unused
+  ?tp(foo, #{a => A}).

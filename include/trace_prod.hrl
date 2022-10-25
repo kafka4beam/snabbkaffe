@@ -11,7 +11,11 @@
                     , file => ?FILE
                     })).
 
--define(tp(KIND, EVT), ok).
+-define(tp(KIND, EVT),
+        begin
+          _ = EVT,
+          ok
+        end).
 
 -define(maybe_crash(KIND, DATA), ok).
 

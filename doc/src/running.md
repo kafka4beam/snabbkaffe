@@ -9,7 +9,9 @@ In the most basic form, Snabbkaffe tests look like this:
 ```erlang
 -module(running_example).
 
+-compile(nowarn_export_all).
 -compile(export_all).
+
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
@@ -82,7 +84,7 @@ common_trace_spec(Trace) ->
   ?assert(is_list(Trace)).
 
 %% Check the return value of the run stage:
-common_trace_spec(Result, Trace) ->
+common_trace_spec(Result, _Trace) ->
   ?assertMatch(ok, Result).
 ```
 
@@ -127,7 +129,7 @@ proper_test() ->
   ?run_prop(Config, prop()).
 
 prop() ->
-  ?FORALL({Ret, L}, {term(), list()},
+  ?FORALL({_Ret, _L}, {term(), list()},
          ?check_trace(
             %% Run stage:
             ok,
@@ -146,7 +148,7 @@ simple_prop_test() ->
   ?run_prop(#{}, simple_prop()).
 
 simple_prop() ->
-  ?forall_trace({Ret, L}, {term(), list()},
+  ?forall_trace({_Ret, _L}, {term(), list()},
                 %% Run stage:
                 ok,
                 %% Check stage:
