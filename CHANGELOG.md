@@ -1,4 +1,9 @@
 # Changelog
+
+## 1.0.2
+### Fixes
+- Fix unused variables compilation warnings for `?tp(kind, _)` macro in prod mode
+
 ## 1.0.0
 ### Features
 - Publish documentation
