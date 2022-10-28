@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+### Features
+- Clean stack traces from entries related to the test framework internals (can be disabled with `tidy_stacktrace => false` config)
+
 ## 1.0.2
 ### Fixes
 - Fix unused variables compilation warnings for `?tp(kind, _)` macro in prod mode
