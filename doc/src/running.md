@@ -115,6 +115,9 @@ It is recommended to handle the timeouts using `timetrap` in `?check_trace`, rat
 `timeout` parameter specifies "silence interval" for the testcase.
 If it is set to `T`, upon completion of the run stage snabbkaffe will wait for events arriving within `T` milliseconds after the last received event.
 
+By default snabbkaffe removes parts of the stacktrace that are internal for the test frameworks (such as `ct`, `eunit` and `proper`).
+This behavior can be disabled using `tidy_stacktrace => false` option.
+
 ## Integrating with PropEr
 
 There are two useful macros for running snabbkaffe together with [PropER](https://proper-testing.github.io/):

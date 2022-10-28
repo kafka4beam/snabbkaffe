@@ -104,9 +104,10 @@
 -type maybe(A) :: {just, A} | nothing.
 
 -type run_config() ::
-        #{ bucket   => integer()
-         , timeout  => integer()
-         , timetrap => integer()
+        #{ bucket          => integer()
+         , timeout         => integer()
+         , timetrap        => integer()
+         , tidy_stacktrace => boolean()
          }.
 
 -type predicate() :: fun((event()) -> boolean()).
@@ -328,7 +329,7 @@ run(Config, Run, Check) ->
   snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
   case run_stage(Run, Config) of
     {ok, Result, Trace} ->
-      check_stage(Check, Result, Trace);
+      check_stage(Check, Result, Trace, Config);
     Err ->
       Err
   end.
@@ -696,8 +697,9 @@ run_stage(Run, Config) ->
     ?SNK_CONCUERROR orelse push_stats(run_time, Bucket, RunTime),
     {ok, Result, Trace}
   catch
-    EC:Err ?BIND_STACKTRACE(Stack) ->
-      ?GET_STACKTRACE(Stack),
+    EC:Err ?BIND_STACKTRACE(Stack0) ->
+      ?GET_STACKTRACE(Stack0),
+      Stack = maybe_cleanup_stacktrace(Stack0, Config),
       Trace1 = snabbkaffe_collector:flush_trace(),
       Filename = dump_trace(Trace1),
       logger:critical("Run stage failed: ~p:~p~nStacktrace: ~p~n"
@@ -709,11 +711,11 @@ run_stage(Run, Config) ->
     cleanup()
   end.
 
--spec check_stage(trace_specs(Result), Result, trace()) -> boolean() | {error, _}.
-check_stage(Fun, Result, Trace) when is_function(Fun) ->
-  check_stage([{"check stage", Fun}], Result, Trace);
-check_stage(Specs, Result, Trace) ->
-  Failed = [Spec || Spec <- Specs, not run_trace_spec(Spec, Result, Trace)],
+-spec check_stage(trace_specs(Result), Result, trace(), run_config()) -> boolean() | {error, _}.
+check_stage(Fun, Result, Trace, Config) when is_function(Fun) ->
+  check_stage([{"check stage", Fun}], Result, Trace, Config);
+check_stage(Specs, Result, Trace, Config) ->
+  Failed = [Spec || Spec <- Specs, not run_trace_spec(Spec, Result, Trace, Config)],
   case Failed of
     [] ->
       true;
@@ -724,7 +726,7 @@ check_stage(Specs, Result, Trace) ->
   end.
 
 %% @private
-run_trace_spec(Spec, Result, Trace) ->
+run_trace_spec(Spec, Result, Trace, Config) ->
   case Spec of
     {Name, Fun} -> ok;
     Fun         -> Name = io_lib:format("~p", [Fun])
@@ -743,8 +745,9 @@ run_trace_spec(Spec, Result, Trace) ->
       ok   -> true;
       _    -> logger:critical("~p failed: invalid return value ~p", [Name, Ret]), false
     end
-  catch EC:Error ?BIND_STACKTRACE(Stack) ->
-      ?GET_STACKTRACE(Stack),
+  catch EC:Error ?BIND_STACKTRACE(Stack0) ->
+      ?GET_STACKTRACE(Stack0),
+      Stack = maybe_cleanup_stacktrace(Stack0, Config),
       logger:critical("~p failed: ~p~n~p~nStacktrace: ~p~n",
                       [Name, EC, Error, Stack]),
       false
@@ -930,8 +933,8 @@ maybe_rpc(M, F, A) ->
   end.
 
 %% @private
--spec timetrap(map()) -> pid() | undefined.
-timetrap(#{timetrap := Timeout}) ->
+-spec timetrap(run_config()) -> pid() | undefined.
+timetrap(Config = #{timetrap := Timeout}) ->
   Parent = self(),
   spawn(
     fun() ->
@@ -939,13 +942,13 @@ timetrap(#{timetrap := Timeout}) ->
         erlang:send_after(Timeout, self(), timeout),
         receive
           timeout ->
-            Stack = process_info(Parent, current_stacktrace),
+            {current_stacktrace, Stack} = process_info(Parent, current_stacktrace),
             Trace = collect_trace(0),
             Filename1 = dump_trace(Trace),
             logger:critical("Run stage timed out.~n"
                             "Stacktrace: ~p~n"
                             "Trace dump: ~p~n",
-                            [Stack, Filename1]),
+                            [maybe_cleanup_stacktrace(Stack, Config), Filename1]),
             exit(Parent, timetrap);
           {'DOWN', MRef, _, _, _} ->
             ok
@@ -976,3 +979,27 @@ truncate_list(0, _) ->
   ['...'];
 truncate_list(N, [A|L]) ->
   [A | truncate_list(N - 1, L)].
+
+%% Remove entries from the stacktrace that are likely irrelevant
+-spec maybe_cleanup_stacktrace(list(), run_config()) -> list().
+maybe_cleanup_stacktrace(Stack, #{tidy_stacktrace := false}) ->
+  Stack;
+maybe_cleanup_stacktrace(Stack, _Config) ->
+  lists:filter(fun(I) ->
+                   Module = element(1, I),
+                   Function = element(2, I),
+                   case Module of
+                     snabbkaffe           -> false;
+                     snabbkaffe_collector -> false;
+                     test_server          -> false;
+                     eunit_test           -> false;
+                     proper ->
+                       case Function of
+                         child      -> false;
+                         apply_args -> false;
+                         _          -> true
+                       end;
+                     _ -> true
+                   end
+               end,
+               Stack).
