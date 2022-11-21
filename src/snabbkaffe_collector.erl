@@ -81,7 +81,7 @@
 -spec tp(logger:level(), map(), logger:metadata()) -> ok.
 tp(Level, Event, Metadata0) ->
   Metadata = Metadata0 #{time => timestamp()},
-  logger:log(Level, Event, Metadata),
+  logger:log(Level, Event, Metadata0),
   EventAndMeta = Event #{?snk_meta => Metadata},
   %% Call or cast? This is a tricky question, since we need to
   %% preserve causality of trace events. Per documentation, Erlang
