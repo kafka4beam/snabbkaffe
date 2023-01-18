@@ -141,6 +141,18 @@ t_silence_interval_timetrap(Cfg) when is_list(Cfg) ->
       error(no_timetrap)
   end.
 
+t_pretty_print(Cfg) when is_list(Cfg) ->
+  try
+    os:putenv("SNK_PRETTY_PRINT_DUMP", "true"),
+    snabbkaffe:start_trace(),
+    ?tp(test_event, #{foo => bar}),
+    ?tp(test_event2, #{foo => bar}),
+    Trace = snabbkaffe:collect_trace(),
+    snabbkaffe:dump_trace(Trace)
+  after
+    os:unsetenv("SNK_PRETTY_PRINT_DUMP")
+  end.
+
 %%====================================================================
 %% Internal functions
 %%====================================================================

@@ -1,4 +1,4 @@
-%% Copyright 2021-2022 snabbkaffe contributors
+%% Copyright 2021-2023 snabbkaffe contributors
 %% Copyright 2019-2020 Klarna Bank AB
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,10 +148,10 @@ tp(Location, Level, Kind, Data) ->
 -spec local_tp(term(), logger:level(), kind(), map(), map()) -> ok.
 local_tp(Location, Level, Kind, Data, Metadata) ->
   Event = Data #{?snk_kind => Kind},
-  EventAndMeta = Event #{ ?snk_meta => Metadata },
+  EventAndMeta = Event #{?snk_meta => Metadata},
   snabbkaffe_nemesis:maybe_delay(EventAndMeta),
   snabbkaffe_nemesis:maybe_crash(Location, EventAndMeta),
-  snabbkaffe_collector:tp(Level, Event, Metadata).
+  snabbkaffe_collector:tp(Level, Event, Metadata #{location => Location}).
 
 -spec remote_tp(term(), logger:level(), kind(), map(), map()) -> ok.
 remote_tp(Location, Level, Kind, Data, Meta) ->
@@ -661,14 +661,37 @@ dump_trace(Trace) ->
   {ok, CWD} = file:get_cwd(),
   Filename = integer_to_list(os:system_time()) ++ ".log",
   FullPath = filename:join([CWD, "snabbkaffe", Filename]),
+  Pretty = os:getenv("SNK_PRETTY_PRINT_DUMP") =/= false,
   filelib:ensure_dir(FullPath),
   {ok, Handle} = file:open(FullPath, [write]),
   try
-    lists:foreach(fun(I) -> io:format(Handle, "~0p.~n", [I]) end, Trace)
+    lists:foreach(fun(I) ->
+                      dump_trace_event(Pretty, Handle, I)
+                  end, Trace)
   after
     file:close(Handle)
   end,
   FullPath.
+
+-spec dump_trace_event(boolean(), io:device(), io:event()) -> ok.
+dump_trace_event(true, Handle, Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0) ->
+  Loc = try
+          {File, Line} = Fun(),
+          [File, $:|integer_to_list(Line)]
+        catch
+          _:_ ->
+            ""
+        end,
+  Evt = maps:update_with(
+          ?snk_meta,
+          fun(Meta) ->
+              maps:remove(location, Meta)
+          end,
+          Evt0),
+  io:format(Handle, "~s  ~0p.~n", [Loc, Evt]);
+dump_trace_event(_Pretty, Handle, Evt) ->
+  io:format(Handle, "~0p.~n", [Evt]).
+
 -else.
 dump_trace(Trace) ->
   lists:foreach(fun(I) -> io:format("~0p.~n", [I]) end, Trace).
