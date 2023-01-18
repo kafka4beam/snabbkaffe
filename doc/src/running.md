@@ -41,6 +41,8 @@ basic_test() ->
 
 If either run stage or check stage fails, `?check_trace` dumps the collected trace to a file and throws an exception that is detected by eunit or Common Test.
 The trace dumps are placed to `snabbkaffe` sub-directory of the current working directory.
+By default snabbkaffe dumps all the events as is, but if `SNK_PRETTY_PRINT_DUMP` OS environment variable is set, then it prefixes trace events with file and line of the source code file that produced the event.
+It is useful for debugging and troubleshooting.
 
 If the return value from the run stage is not needed in the check stage, it can be omitted:
 

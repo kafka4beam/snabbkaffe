@@ -6,7 +6,12 @@
 %% Dirty hack: we use reference to a local function as a key that can
 %% be used to refer error injection points. This works, because all
 %% invokations of this macro create a new fun object with unique id.
--define(__snkStaticUniqueToken, fun() -> ok end).
+%%
+%% Note: the returned tuple doesn't play any role for snabbkaffe,
+%% since it compares fun objects rather than return values.
+%%
+%% But it's used for pretty printing of the trace dump.
+-define(__snkStaticUniqueToken, fun() -> {?FILE, ?LINE} end).
 
 -define(tp(LEVEL, KIND, EVT),
         snabbkaffe:tp(?__snkStaticUniqueToken, LEVEL, KIND, EVT)).

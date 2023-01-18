@@ -6,6 +6,8 @@
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
 -include_lib("snabbkaffe/include/ct_boilerplate.hrl").
 
+-compile(nowarn_deprecated_function). %% Silence the warnings about slave module
+
 %%====================================================================
 %% CT callbacks
 %%====================================================================
