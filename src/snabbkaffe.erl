@@ -210,7 +210,8 @@ wait_async_action(Action, Predicate, Timeout) ->
 %% <b>Note</b>: In the current implementation `Predicate' runs for
 %% every received event. It means this function should be lightweight
 -spec block_until(filter(), timeout(), timeout()) ->
-                     event() | timeout.
+                     {ok, event()} | timeout |
+                     {ok | timeout, [event()]}.
 block_until(Filter, Timeout, BackInTime) ->
   snabbkaffe_collector:block_until(Filter, Timeout, BackInTime).
 
