@@ -21,3 +21,5 @@ test/*_example.erl
 doc/*
 !doc/src
 !doc/src/*
+#*
+.#*
