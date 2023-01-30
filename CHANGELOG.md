@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5
+### Features
+- OTP25 support
+- Show code location (`file:line`) of the trace events in the trace dump (optional feature, enabled by setting environment variable `SNK_PRETTY_PRINT_DUMP`)
+
+## 1.0.4
+### Fixes
+- Fix timestamps of the log messages corresponding to the trace event in test mode (no more logs from 70s)
+
 ## 1.0.3
 ### Features
 - Clean stack traces from entries related to the test framework internals (can be disabled with `tidy_stacktrace => false` config)
