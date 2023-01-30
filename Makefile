@@ -52,14 +52,12 @@ OUTDIR := "$(DOCROOT)/$(VSN)"
 
 .PHONY: doc
 doc:
-	rebar3 as dev ex_doc
+	rebar3 as dev ex_doc --output $(OUTDIR)
 
 .PHONY: doc-publish
 doc-publish: $(DOCROOT)/index.html
 
 $(DOCROOT)/index.html: doc $(OUTDIR) doc/src/make-homepage
-	cp -R doc/dist $(OUTDIR)
-	cp doc/*.html $(OUTDIR)
 	doc/src/make-homepage $(VSN) > $@
 	cd $(DOCROOT) && \
 	git add --all && \
