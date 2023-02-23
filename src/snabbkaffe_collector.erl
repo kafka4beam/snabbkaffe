@@ -33,6 +33,7 @@
 
 %% Internal exports
 -export([ wait_for_silence/1
+        , make_begin_trace/0
         ]).
 
 %% gen_server callbacks
@@ -185,16 +186,20 @@ wait_for_silence(SilenceInterval) when SilenceInterval > 0 ->
 get_last_event_ts() ->
   gen_server:call(?SERVER, get_last_event_ts, infinity).
 
+
+make_begin_trace() ->
+    #{ ts                => timestamp()
+     , begin_system_time => os:system_time(microsecond)
+     , ?snk_kind         => '$trace_begin'
+     }.
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
 init([]) ->
   persistent_term:put(?PT_TP_FUN, fun snabbkaffe:local_tp/5),
-  TS = timestamp(),
-  BeginTrace = #{ ts        => TS
-                , ?snk_kind => '$trace_begin'
-                },
+  #{ts := TS} = BeginTrace = make_begin_trace(),
   {ok, #s{ trace         = [BeginTrace]
          , last_event_ts = TS
          }}.
