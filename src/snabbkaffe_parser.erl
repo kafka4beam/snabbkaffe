@@ -34,26 +34,10 @@
 %% Type declarations
 %%================================================================================
 
--type cont(A, R) :: fun((fun((A) -> R)) -> R).
-
--opaque m(R) :: cont(snabbkaffe:event(), R).
-
-%% -type vertex_id() :: snabbkaffe:event().
-
-%% %% Vertex:
-%% -record(connector,
-%%         { emanent :: vertex_id()
-%%         , cont ::
-%%         }).
-
-%% %% Parser state:
-%% -record(s,
-%%         { result :: term()
-%%         , graph :: digraph:graph()
-%%         , active_set :: []
-%%         }).
-
-%% -opaque m(_A) :: #s{}.
+-opaque m(R) :: {more, fun((_State, _Event) -> _Ret)}
+              | {done, _Ret}
+              | get_state
+              | discard.
 
 %%================================================================================
 %% API funcions
@@ -61,9 +45,14 @@
 
 -spec next() -> m(snabbkaffe:event()).
 next() ->
-  {more, fun(State, Event) ->
-             Event
-         end}.
+  {more,
+   fun(State, Event) ->
+       Event
+   end}.
+
+-spec discard() -> m(undefined).
+discard() ->
+  discard.
 
 %%================================================================================
 %% behavior callbacks
@@ -80,7 +69,9 @@ bind({more, Cont}, Fun) ->
              Fun(Val)
          end};
 bind({done, Val}, Fun) ->
-  Fun(Val).
+  Fun(Val);
+bind(discard, _Fun) ->
+  discard.
 
 nomatch(A) ->
   throw({nomatch, A}).
@@ -92,6 +83,38 @@ nomatch(A) ->
 %%================================================================================
 %% Internal functions
 %%================================================================================
+
+-type vertex_id() :: non_neg_integer().
+
+%% Vertex
+-record(v,
+        { event :: snabbkaffe:event()
+        }).
+
+%% Parser state:
+-record(p,
+        { visited :: [vertex_id()]
+        , result :: m()
+        }).
+
+%% Global state:
+-record(s,
+        { counter = 1 :: vertex_id()
+        , vertices = #{} :: #{vertex_id() => #v{}}
+        , seed_parser :: m(_)
+        , active :: [#p{}]
+        , done :: [#p{}]
+        , failed :: [#p{}]
+        }).
+
+-spec get_state() -> m(#s{}).
+get_state() ->
+
+
+-spec step(snabbkaffe:event(), #s{}) -> #s{}.
+step(Event, S = #s{counter = Id}) ->
+
+
 
 bind_00_test() ->
   M = [do/?MODULE ||
