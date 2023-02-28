@@ -27,8 +27,6 @@
         , collect_trace/0
         , collect_trace/1
         , dump_trace/1
-        , dump_trace/2
-        , format_trace/1
         , block_until/2
         , block_until/3
         , subscribe/4
@@ -74,7 +72,6 @@
 %% Internal exports:
 -export([ local_tp/5
         , remote_tp/5
-        , pp_trace/2
         ]).
 
 %%====================================================================
@@ -665,22 +662,39 @@ dump_trace(Trace) ->
   {ok, CWD} = file:get_cwd(),
   Filename = integer_to_list(os:system_time()) ++ ".log",
   FullPath = filename:join([CWD, "snabbkaffe", Filename]),
-  Pretty = os:getenv("SNK_PRETTY_PRINT_DUMP") =/= false,
-  Formatter = fun(Evt) -> pp_trace(Pretty, Evt) end,
   filelib:ensure_dir(FullPath),
   {ok, Handle} = file:open(FullPath, [write]),
   try
-    dump_trace(Handle, Trace, Formatter)
+    io:format(Handle, "~s~n", [format_trace(Trace)])
   after
     file:close(Handle)
   end,
   FullPath.
--else.
-dump_trace(Trace) ->
-  dump_trace(standard_io, Trace).
--endif. %% CONCUERROR
 
-pp_trace(true, Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0) ->
+format_trace(Trace) ->
+  [#{begin_system_time := BeginTime, ts := BeginMonoTime}] = ?of_kind('$trace_begin', Trace),
+  lists:map(fun(E) -> format_event(BeginTime, BeginMonoTime, E) end, Trace).
+
+format_event(BeginTime, BeginMonoTime, #{?snk_kind := Kind0} = Event0) ->
+  Kind = case is_atom(Kind0) of
+           true -> atom_to_list(Kind0);
+           false -> Kind0
+         end,
+  MonoTime = event_monotonic_time(Event0),
+  Delta = MonoTime - BeginMonoTime,
+  Time = BeginTime + Delta,
+  TsStr = calendar:system_time_to_rfc3339(Time, [{unit, microsecond}]),
+  {LocStr, Event} = location_str(Event0),
+  Event1 = remove_meta_key(time, maps:without([?snk_kind, ts], Event)),
+  FmtEvent = io_lib:format("~s [~s] ~0p.~n", [TsStr, Kind, maps:without([?snk_kind, ts], Event1)]),
+  maybe_add_location(LocStr, FmtEvent).
+
+maybe_add_location("" = _LocStr, FormattedEvent) ->
+  FormattedEvent;
+maybe_add_location(LocStr, FormattedEvent) ->
+  io_lib:format("~s ~s", [LocStr, FormattedEvent]).
+
+location_str(Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0) ->
   Loc = try
           {File, Line} = Fun(),
           [File, $:|integer_to_list(Line)]
@@ -688,45 +702,23 @@ pp_trace(true, Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 
           _:_ ->
             ""
         end,
-  Evt = maps:update_with(
-          ?snk_meta,
-          fun(Meta) ->
-              maps:remove(location, Meta)
-          end,
-          Evt0),
-  io_lib:format("~s ~s", [Loc, pp(Evt)]);
-pp_trace(_, Evt) ->
-  pp(Evt).
+  {Loc, remove_meta_key(location, Evt0)};
+location_str(Evt0) ->
+  {"", Evt0}.
 
-pp(#{?snk_kind := Kind0} = D) ->
-    Kind = case is_atom(Kind0) of
-               true -> atom_to_list(Kind0);
-               false -> Kind0
-           end,
-    io_lib:format("[~s] ~0p.", [Kind, maps:without([?snk_kind], D)]).
+event_monotonic_time(#{?snk_meta := #{time := Time}}) -> Time;
+event_monotonic_time(#{ts := Time}) -> Time.
 
-dump_trace(IoDevice, Trace) ->
-    dump_trace(IoDevice, Trace, fun pp/1).
+remove_meta_key(Key, #{?snk_meta := Meta} = Event) ->
+  Event#{?snk_meta => maps:remove(Key, Meta)};
+remove_meta_key(_Key, Event) ->
+  Event.
 
-dump_trace(IoDevice, Trace, Formatter) ->
-  io:format(IoDevice, "~s~n", [format_trace(Trace, Formatter)]).
+-else.
+dump_trace(Trace) ->
+  lists:foreach(fun(Event) -> io:format("~0p.~n", [Event]) end, Trace).
+-endif. %% CONCUERROR
 
-format_trace(Trace) ->
-    format_trace(Trace, fun pp/1).
-
-format_trace(Trace, Formatter) ->
-  [#{begin_system_time := BeginTs, ts := BeginMonoTime}] = ?of_kind('$trace_begin', Trace),
-  lists:map(
-    fun(Event) ->
-            MonoTime = get_event_mono_time(Event),
-            Delta = MonoTime - BeginMonoTime,
-            Ts = BeginTs + Delta,
-            TsStr = calendar:system_time_to_rfc3339(Ts, [{unit, microsecond}]),
-            io_lib:format("~s ~s~n", [TsStr, Formatter(Event)])
-    end, Trace).
-
-get_event_mono_time(#{?snk_meta := #{time := Time}}) -> Time;
-get_event_mono_time(#{ts := Time}) -> Time.
 
 %%====================================================================
 %% Internal functions
