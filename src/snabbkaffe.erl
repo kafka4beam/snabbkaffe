@@ -327,7 +327,7 @@ run(Config, Run, Check) ->
   start_trace(),
   %% Wipe the trace buffer clean:
   _ = collect_trace(0),
-  snabbkaffe_collector:tp(debug, #{?snk_kind => '$trace_begin'}, #{}),
+  snabbkaffe_collector:tp(debug, snabbkaffe_collector:make_begin_trace(), #{}),
   case run_stage(Run, Config) of
     {ok, Result, Trace} ->
       check_stage(Check, Result, Trace, Config);
@@ -662,20 +662,39 @@ dump_trace(Trace) ->
   {ok, CWD} = file:get_cwd(),
   Filename = integer_to_list(os:system_time()) ++ ".log",
   FullPath = filename:join([CWD, "snabbkaffe", Filename]),
-  Pretty = os:getenv("SNK_PRETTY_PRINT_DUMP") =/= false,
   filelib:ensure_dir(FullPath),
   {ok, Handle} = file:open(FullPath, [write]),
   try
-    lists:foreach(fun(I) ->
-                      dump_trace_event(Pretty, Handle, I)
-                  end, Trace)
+    io:format(Handle, "~s~n", [format_trace(Trace)])
   after
     file:close(Handle)
   end,
   FullPath.
 
--spec dump_trace_event(boolean(), io:device(), io:event()) -> ok.
-dump_trace_event(true, Handle, Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0) ->
+format_trace(Trace) ->
+  [#{begin_system_time := BeginTime, ts := BeginMonoTime}] = ?of_kind('$trace_begin', Trace),
+  lists:map(fun(E) -> format_event(BeginTime, BeginMonoTime, E) end, Trace).
+
+format_event(BeginTime, BeginMonoTime, #{?snk_kind := Kind0} = Event0) ->
+  Kind = case is_atom(Kind0) of
+           true -> atom_to_list(Kind0);
+           false -> Kind0
+         end,
+  MonoTime = event_monotonic_time(Event0),
+  Delta = MonoTime - BeginMonoTime,
+  Time = BeginTime + Delta,
+  TsStr = calendar:system_time_to_rfc3339(Time, [{unit, microsecond}]),
+  {LocStr, Event} = location_str(Event0),
+  Event1 = remove_meta_key(time, maps:without([?snk_kind, ts], Event)),
+  FmtEvent = io_lib:format("~s [~s] ~0p.~n", [TsStr, Kind, maps:without([?snk_kind, ts], Event1)]),
+  maybe_add_location(LocStr, FmtEvent).
+
+maybe_add_location("" = _LocStr, FormattedEvent) ->
+  FormattedEvent;
+maybe_add_location(LocStr, FormattedEvent) ->
+  io_lib:format("~s ~s", [LocStr, FormattedEvent]).
+
+location_str(Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0) ->
   Loc = try
           {File, Line} = Fun(),
           [File, $:|integer_to_list(Line)]
@@ -683,20 +702,23 @@ dump_trace_event(true, Handle, Evt0 = #{?snk_meta := #{location := Fun}}) when i
           _:_ ->
             ""
         end,
-  Evt = maps:update_with(
-          ?snk_meta,
-          fun(Meta) ->
-              maps:remove(location, Meta)
-          end,
-          Evt0),
-  io:format(Handle, "~s  ~0p.~n", [Loc, Evt]);
-dump_trace_event(_Pretty, Handle, Evt) ->
-  io:format(Handle, "~0p.~n", [Evt]).
+  {Loc, remove_meta_key(location, Evt0)};
+location_str(Evt0) ->
+  {"", Evt0}.
+
+event_monotonic_time(#{?snk_meta := #{time := Time}}) -> Time;
+event_monotonic_time(#{ts := Time}) -> Time.
+
+remove_meta_key(Key, #{?snk_meta := Meta} = Event) ->
+  Event#{?snk_meta => maps:remove(Key, Meta)};
+remove_meta_key(_Key, Event) ->
+  Event.
 
 -else.
 dump_trace(Trace) ->
-  lists:foreach(fun(I) -> io:format("~0p.~n", [I]) end, Trace).
+  lists:foreach(fun(Event) -> io:format("~0p.~n", [Event]) end, Trace).
 -endif. %% CONCUERROR
+
 
 %%====================================================================
 %% Internal functions
