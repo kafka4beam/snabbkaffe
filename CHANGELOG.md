@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+### Features
+- Add timestamp of the trace events in the trace dump
+- Show timestamp and code location (`file:line`) of the trace events by default (environment variable `SNK_PRETTY_PRINT_DUMP` is not used anymore).
+
 ## 1.0.5
 ### Features
 - OTP25 support
@@ -76,7 +81,7 @@
 - Fix race condition in the injected fault
 
 ### Features
-- Improved event subscription mechanism using new APIs: `snabbkaffe_collector:subcribe` and `receive_events`, that aim to replace the `?wait_async_action` macro:
+- Improved event subscription mechanism using new APIs: `snabbkaffe_collector:subscribe` and `receive_events`, that aim to replace the `?wait_async_action` macro:
 
 ```erlang
 {ok, Sub} = snabbkaffe_collector:subscribe( ?match_event(#{?snk_kind := foo})
