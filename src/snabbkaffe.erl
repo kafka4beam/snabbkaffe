@@ -92,7 +92,7 @@
 
 -type timed_event() ::
         #{ ?snk_kind := kind()
-         , ts   := timestamp()
+         , ?snk_meta := #{time := integer(), _ => _}
          , _ => _
          }.
 
@@ -672,7 +672,10 @@ dump_trace(Trace) ->
   FullPath.
 
 format_trace(Trace) ->
-  [#{begin_system_time := BeginTime, ts := BeginMonoTime}] = ?of_kind('$trace_begin', Trace),
+  [#{ ?snk_kind := '$trace_begin'
+    , begin_system_time := BeginTime
+    , ?snk_meta := #{time := BeginMonoTime}
+    }|_] = Trace,
   lists:map(fun(E) -> format_event(BeginTime, BeginMonoTime, E) end, Trace).
 
 format_event(BeginTime, BeginMonoTime, #{?snk_kind := Kind0} = Event0) ->
@@ -706,8 +709,7 @@ location_str(Evt0 = #{?snk_meta := #{location := Fun}}) when is_function(Fun, 0)
 location_str(Evt0) ->
   {"", Evt0}.
 
-event_monotonic_time(#{?snk_meta := #{time := Time}}) -> Time;
-event_monotonic_time(#{ts := Time}) -> Time.
+event_monotonic_time(#{?snk_meta := #{time := Time}}) -> Time.
 
 remove_meta_key(Key, #{?snk_meta := Meta} = Event) ->
   Event#{?snk_meta => maps:remove(Key, Meta)};
