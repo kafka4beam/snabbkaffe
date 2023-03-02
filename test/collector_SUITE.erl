@@ -43,8 +43,8 @@ t_check_trace(_Config) when is_list(_Config) ->
      42,
      fun(Ret, Trace) ->
          ?assertMatch(42, Ret),
-         ?assertMatch( [ #{?snk_kind := '$trace_begin'}
-                       , #{?snk_kind := '$trace_end'}
+         ?assertMatch( [ #{?snk_kind := '$trace_begin', ?snk_meta := #{time := _}}
+                       , #{?snk_kind := '$trace_end', ?snk_meta := #{time := _}}
                        ]
                      , Trace)
      end).

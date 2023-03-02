@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+### Non-BC changes
+- Change the format of `$trace_begin` event from `#{?snk_kind => '$trace_begin', ts => ...}` to `#{?snk_kind => '$trace_begin', ?snk_meta => #{time => ...}}`
+
 ## 1.0.6
 ### Features
 - Add timestamp of the trace events in the trace dump

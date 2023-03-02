@@ -1,5 +1,5 @@
-%% Copyright 2019-2020, 2022 Klarna Bank AB
-%% Copyright 2021 snabbkaffe contributors
+%% Copyright 2021-2023 snabbkaffe contributors
+%% Copyright 2019-2020 Klarna Bank AB
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -188,9 +188,9 @@ get_last_event_ts() ->
 
 
 make_begin_trace() ->
-    #{ ts                => timestamp()
+    #{ ?snk_kind         => '$trace_begin'
      , begin_system_time => os:system_time(microsecond)
-     , ?snk_kind         => '$trace_begin'
+     , ?snk_meta         => #{time => timestamp()}
      }.
 
 %%%===================================================================
@@ -199,7 +199,7 @@ make_begin_trace() ->
 
 init([]) ->
   persistent_term:put(?PT_TP_FUN, fun snabbkaffe:local_tp/5),
-  #{ts := TS} = BeginTrace = make_begin_trace(),
+  #{?snk_meta := #{time := TS}} = BeginTrace = make_begin_trace(),
   {ok, #s{ trace         = [BeginTrace]
          , last_event_ts = TS
          }}.
