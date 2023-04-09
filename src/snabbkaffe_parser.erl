@@ -34,10 +34,8 @@
 %% Type declarations
 %%================================================================================
 
--opaque m(R) :: {more, fun((_State, _Event) -> _Ret)}
-              | {done, _Ret}
-              | get_state
-              | discard.
+-opaque m(R) :: {more, fun((_State, _Event) -> R)}
+              | {done, R}.
 
 %%================================================================================
 %% API funcions
@@ -63,15 +61,13 @@ return(A) ->
   {done, A}.
 
 -spec bind(m(A), fun((A) -> m(B))) -> m(B).
-bind({more, Cont}, Fun) ->
+bind({more, Cont}, Next) ->
   {more, fun(State, Event) ->
              Val = Cont(State, Event),
-             Fun(Val)
+             Next(Val)
          end};
-bind({done, Val}, Fun) ->
-  Fun(Val);
-bind(discard, _Fun) ->
-  discard.
+bind({done, Val}, Next) ->
+  Next(Val).
 
 nomatch(A) ->
   throw({nomatch, A}).
@@ -94,7 +90,7 @@ nomatch(A) ->
 %% Parser state:
 -record(p,
         { visited :: [vertex_id()]
-        , result :: m()
+        , result :: m(term())
         }).
 
 %% Global state:
@@ -107,14 +103,11 @@ nomatch(A) ->
         , failed :: [#p{}]
         }).
 
--spec get_state() -> m(#s{}).
-get_state() ->
-
+%% -spec get_state()
 
 -spec step(snabbkaffe:event(), #s{}) -> #s{}.
 step(Event, S = #s{counter = Id}) ->
-
-
+  S.
 
 bind_00_test() ->
   M = [do/?MODULE ||
