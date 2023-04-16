@@ -113,10 +113,11 @@ next() ->
 -spec fork() -> m(_S, undefined).
 fork() ->
   over_state(fun(S = #s{active = Active0}) ->
+                 1 = S,
                  {true, Parser0 = #p{parser_id = Id}} = zip_get(Active0),
                  Parser1 = Parser0#p{parser_id = [make_ref()|Id]},
                  Parser2 = Parser0#p{parser_id = [make_ref()|Id]},
-                 Active = zip_replace(Parser1, zip_shiftr(zip_insert(Parser2, Active0))),
+                 Active = zip_insertl(Parser1, zip_replace(Parser2, Active0)),
                  {undefined, S#s{active = Active}}
              end).
 
@@ -147,7 +148,7 @@ feed(Event, S1 = #s{counter = Id, seed_parser = Seed}) ->
                    , edges = add_edge(PrevVertex, Edges, Edge)
                    }};
       {more, Next, S3 = #s{active = Active0, edges = Edges}, Edge} ->
-        {true, S3#s{ active = zip_shiftr(zip_insert(Next, Active0))
+        {true, S3#s{ active = zip_insertl(Next, Active0)
                    , edges = add_edge(PrevVertex, Edges, Edge)
                    }};
       {fail, Reason, S3 = #s{edges = Edges, failed = Failed}, Edge} ->
@@ -194,8 +195,11 @@ zip_remove({L, [_|R]}) ->
 zip_replace(A, {L, [_|R]}) ->
   {L, [A|R]}.
 
-zip_insert(A, {L, R}) ->
+zip_insertr(A, {L, R}) ->
   {L, [A|R]}.
+
+zip_insertl(A, {L, R}) ->
+  {[A|L], R}.
 
 zip_shiftl({[A|L], R}) ->
   {L, [A|R]};
@@ -459,5 +463,18 @@ parse_020_fail_test() ->
                 , incomplete := []
                 , failed := [_, _]
                 }, parse(Seed, Events)).
+
+parse_030_fork_test() ->
+  Seed = [do/?MODULE ||
+           #{a := A} <- next(cause),
+           fork(),
+           #{b := B} <- next(effect),
+           return({pair, A, B})],
+  Events = [#{a => 1}, #{b => 2}, #{b => 3}, #{a => 4}, #{b => 5}],
+  #{complete := Complete, incomplete := [_, _], failed := []} = parse(Seed, Events),
+  {_, Results} = lists:unzip(Complete),
+  ?assertMatch( [{pair, 1, 2}, {pair, 1, 3}, {pair, 1, 5}, {pair, 4, 5}]
+              , lists:sort(Results)
+              ).
 
 -endif. %% TEST
