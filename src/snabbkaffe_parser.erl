@@ -18,13 +18,13 @@
 -behavior(emonad).
 
 %% API:
--export([next/0]).
+-export([next/0, fork/0]).
 -export([new/1, feed/2, parse/2]).
 
 %% behavior callbacks:
 -export([bind/2, return/1, nomatch/1]).
 
--export_type([m/2, state/0, parse_result/0, vertex_id/0, edge/0, edges/0]).
+-export_type([m/2, state/0, failed/0, parse_result/0, vertex_id/0, edge/0, edges/0]).
 
 -compile({parse_transform, emonad}).
 
@@ -50,8 +50,10 @@
 
 -type parser_id() :: [reference()].
 
+-type failed() :: {parser_id(), {throw | error | exit, _Reason, _Stacktrace :: list()}}.
+
 -type edge() ::
-        #{ incident  := vertex_id()
+        #{ incident  := vertex_id() | parser_id()
          , label     := label()
          , function  := fun()
          , parser_id := parser_id()
@@ -62,17 +64,10 @@
 -type parse_result() ::
         #{ complete := [{parser_id(), term()}]
          , incomplete := [parser_id()]
-         , failed := [{ parser_id()
-                      , {_ErrorKind :: throw | error | exit, _Error :: term(), _Stacktrace :: list()}
-                      }]
-         , vertices := #{vertex_id() => snabbkaffe:event()}
+         , failed := [failed()]
+         , vertices := #{vertex_id() => map()}
          , edges := edges()
          }.
-
-%% Vertex
--record(v,
-        { event :: snabbkaffe:event()
-        }).
 
 %% Parser state:
 -record(p,
@@ -85,7 +80,7 @@
 %% Global state:
 -record(s,
         { counter = 1 :: vertex_id()
-        , vertices = #{} :: #{vertex_id() => #v{}}
+        , vertices = #{} :: #{vertex_id() => map()}
         , edges = #{} :: edges()
         , seed_parser :: m(_, _)
         , active = {[], []} :: zipper(#p{})
@@ -135,26 +130,41 @@ new(Seed) ->
 
 %% @doc Feed next event to the parser
 -spec feed(snabbkaffe:event(), state()) -> state().
-feed(Event, S0 = #s{counter = Id, vertices = V0, seed_parser = Seed}) ->
-  S1 = S0#s{vertices = V0#{Id => Event}},
+feed(Event, S1 = #s{counter = Id, seed_parser = Seed}) ->
   %% Seed and feed:
   #stateful{state = S2, val = {more, SeedLabel, Seed1}} = Seed(S1),
+  ParserId = [make_ref()],
+  PrevVertex = ParserId,
   P = #p{ cont = Seed1
         , label = SeedLabel
-        , parser_id = [make_ref()]
+        , parser_id = ParserId
+        , prev_vertex = PrevVertex
         },
-  S4 = case feed_current(Event, S2, P) of
-         {done, Done, S3 = #s{done = Done0}, _Edge} ->
-           S3#s{done = [Done | Done0]};
-         {more, Next, S3 = #s{active = Active0}, _Edge} ->
-           S3#s{active = zip_shiftr(zip_insert(Next, Active0))};
-         nomatch ->
-           S1
-       end,
+  {Matched0, S4} =
+    case feed_current(Event, S2, P) of
+      {done, Done, S3 = #s{done = Done0, edges = Edges}, Edge} ->
+        {true, S3#s{ done = [Done | Done0]
+                   , edges = add_edge(PrevVertex, Edges, Edge)
+                   }};
+      {more, Next, S3 = #s{active = Active0, edges = Edges}, Edge} ->
+        {true, S3#s{ active = zip_shiftr(zip_insert(Next, Active0))
+                   , edges = add_edge(PrevVertex, Edges, Edge)
+                   }};
+      {fail, Reason, S3 = #s{edges = Edges, failed = Failed}, Edge} ->
+        {true, S3#s{ failed = [Reason | Failed]
+                   , edges = add_edge(PrevVertex, Edges, Edge)
+                   }};
+      nomatch ->
+        {false, S1}
+    end,
   %% Process the existing parsers:
-  S = #s{active = Active} = do_feed(Event, S4),
+  {Matched, S = #s{active = Active, vertices = Vertices}} = do_feed(Matched0, Event, S4),
   S#s{ active = zip_from_list(zip_to_list(Active))
      , counter = Id + 1
+     , vertices = case Matched of
+                    true -> Vertices#{Id => Event};
+                    false -> Vertices %% Skip vertices that were ignored by all parsers
+                  end
      }.
 
 %% @doc Finish parsing
@@ -266,37 +276,43 @@ over_state(Fun) ->
       #stateful{val = {done, Val}, state = State}
   end.
 
--spec do_feed(snabbkaffe:event(), #s{}) -> #s{}.
-do_feed(Event, S0 = #s{active = Active0}) ->
+-spec do_feed(boolean(), snabbkaffe:event(), #s{}) -> {boolean(), #s{}}.
+do_feed(Matched0, Event, S0 = #s{active = Active0}) ->
   case zip_get(Active0) of
     false ->
-      S0;
+      {Matched0, S0};
     {true, Parser = #p{prev_vertex = Emanent}} ->
-      S = case feed_current(Event, S0, Parser) of
-            {done, Result, S1 = #s{active = Active, done = Results, edges = Edges}, NewEdge} ->
-              S1#s{ active = zip_remove(Active)
-                  , done   = [Result | Results]
-                  , edges  = add_edge(Emanent, Edges, NewEdge)
-                  };
-            {more, Next, S1 = #s{active = Active, edges = Edges}, NewEdge} ->
-              S1#s{ active = zip_replace(Next, Active)
-                  , edges  = add_edge(Emanent, Edges, NewEdge)
-                  };
-            nomatch ->
-              S0
-          end,
-      do_feed(Event, S#s{active = zip_shiftr(S#s.active)})
+      {Matched, S} =
+        case feed_current(Event, S0, Parser) of
+          {done, Result, S1 = #s{active = Active, done = Results, edges = Edges}, NewEdge} ->
+            {true, S1#s{ active = zip_remove(Active)
+                       , done   = [Result | Results]
+                       , edges  = add_edge(Emanent, Edges, NewEdge)
+                       }};
+          {more, Next, S1 = #s{active = Active, edges = Edges}, NewEdge} ->
+            {true, S1#s{ active = zip_replace(Next, Active)
+                       , edges  = add_edge(Emanent, Edges, NewEdge)
+                       }};
+          {fail, Reason, S1 = #s{active = Active, failed = Failed, edges = Edges}, NewEdge} ->
+            {true, S1#s{ active = zip_remove(Active)
+                       , failed = [Reason|Failed]
+                       , edges  = add_edge(Emanent, Edges, NewEdge)
+                       }};
+          nomatch ->
+            {Matched0, S0}
+        end,
+      do_feed(Matched, Event, S#s{active = zip_shiftr(S#s.active)})
   end.
 
 -spec feed_current(snabbkaffe:event(), #s{}, #p{}) -> {more, #p{}, #s{}, edge()}
                                                     | {done, _Result, #s{}, edge()}
+                                                    | {fail, failed(), #s{}, edge()}
                                                     | nomatch.
 feed_current(Event,
-             State0 = #s{active = Active0, counter = Counter},
+             State0 = #s{counter = Counter},
              #p{ cont = Parser0
                , label = Label
                , parser_id = ParserId
-               , prev_vertex = PrevVertex
                }) ->
   Edge = #{ incident => Counter
           , label => Label
@@ -316,8 +332,11 @@ feed_current(Event,
                , parser_id = ParserId
                },
       {more, More, State, Edge}
-  catch {nomatch, _Nomatch} ->
-      nomatch
+  catch
+    {nomatch, _Nomatch} ->
+      nomatch;
+    EC:Err:Stack ->
+      {fail, {ParserId, {EC, Err, Stack}}, State0, Edge}
   end.
 
 -spec add_edge(vertex_id(), edges(), edge()) -> edges().
@@ -429,6 +448,16 @@ parse_010_test() ->
   ?assertMatch(#{ complete := [{[_Ref1], {pair, 1}}, {[_Ref2], {pair, 2}}]
                 , incomplete := [_]
                 , failed := []
+                }, parse(Seed, Events)).
+
+parse_020_fail_test() ->
+  Seed = [do/?MODULE ||
+           #{a := A} <- next(cause),
+           error(deliberate)],
+  Events = [#{c => 1}, #{a => 1}, #{a => 2}],
+  ?assertMatch(#{ complete := []
+                , incomplete := []
+                , failed := [_, _]
                 }, parse(Seed, Events)).
 
 -endif. %% TEST
