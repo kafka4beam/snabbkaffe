@@ -101,20 +101,8 @@ next(Label) ->
     %% FIXME: we first update the state (which can be a rather heavy
     %% operation), and only then check if event actually matches. This
     %% should be optimized.
-    over_state(fun(State0 = #s{active = Active, counter = Incident, edges = Edges}) ->
-                   {true, #p{ parser_id = ParserId
-                            , prev_vertex = Emanent
-                            } = P0} = zip_get(Active),
-                   Edge = #{ incident => Incident
-                           , label => Label
-                           , parser_id => ParserId
-                           , function => Cont
-                           },
-                   P = P0#p{cont = Cont, prev_vertex = Incident},
-                   State = State0#s{ edges  = add_edge(Emanent, Edges, Edge)
-                                   , active = zip_replace(P, Active)
-                                   },
-                   {undefined, State}
+    over_state(fun(State) ->
+                   {undefined, on_match(Cont, Label, State)}
                end),
     return(Evt)].
 
@@ -310,6 +298,21 @@ feed_current(Event, S0, #p{cont = Parser0, parser_id = ParserId}) ->
                  , failed = [{ParserId, {EC, Err, Stack}} | S0#s.active]
                  }}
   end.
+
+-spec on_match(m(state(), _Ret), label(), state()) -> state().
+on_match(Cont, Label, State = #s{active = Active, counter = Incident, edges = Edges}) ->
+  {true, #p{ parser_id = ParserId
+           , prev_vertex = Emanent
+           } = P0} = zip_get(Active),
+  Edge = #{ incident => Incident
+          , label => Label
+          , parser_id => ParserId
+          , function => Cont
+          },
+  P = P0#p{cont = Cont, prev_vertex = Incident},
+  State#s{ edges  = add_edge(Emanent, Edges, Edge)
+         , active = zip_replace(P, Active)
+         }.
 
 -spec add_edge(vertex_id(), edges(), edge()) -> edges().
 add_edge(Emanent, Edges, Edge) ->
