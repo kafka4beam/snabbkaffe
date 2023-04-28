@@ -17,6 +17,8 @@
           ok
         end).
 
+-define(tp_ignore_side_effects_in_prod(_KIND, _EVT), ok).
+
 -define(maybe_crash(KIND, DATA), ok).
 
 -define(maybe_crash(DATA), ok).

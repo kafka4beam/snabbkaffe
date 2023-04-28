@@ -70,6 +70,10 @@ In this case, a different form of `?tp` can be used:
 The first argument of the macro is log level, as used by [logger](https://www.erlang.org/doc/man/logger.html#type-level).
 The others are equivalent to the previous form of the macro.
 
+## ?tp_ignore_side_effects_in_prod
+
+This is made available as tool for optimizing specific use cases.  Usually, one shouldn't rely on side effects inside arguments of `?tp/2`.  If there's a need to introduce a trace point in a certain hot path for test efficiency purposes, but the arguments make expensive calls, then this macro is provided and won't ever evaluate its arguments in a production build.
+
 ## ?tp_span
 
 Sometimes it is useful to emit two events before and after some action executes.
