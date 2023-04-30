@@ -18,6 +18,8 @@
 
 -define(tp(KIND, EVT), ?tp(debug, KIND, EVT)).
 
+-define(tp_ignore_side_effects_in_prod(KIND, EVT), ?tp(KIND, EVT)).
+
 -define(maybe_crash(KIND, DATA),
         snabbkaffe_nemesis:maybe_crash(KIND, DATA#{?snk_kind => KIND})).
 

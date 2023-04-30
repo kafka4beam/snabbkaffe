@@ -18,3 +18,7 @@ trace_prod_test() ->
 no_unused_variables_test() ->
   A = 1, %% This variable should not be recognized as unused
   ?tp(foo, #{a => A}).
+
+tp_ignore_side_effects_in_prod_test() ->
+  %% Should not evaluate its args at all when in prod.
+  ?tp_ignore_side_effects_in_prod(foo, #{look => error(boom)}).
