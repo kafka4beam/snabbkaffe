@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.9
+### Features
+- Now it is possible to redefine what `?snk_kind` macro translates to in prod mode by defining `SNK_PROD_KIND` macro.
+
+## 1.0.8
+### Features
+- Add a new `?tp_ignore_side_effects_in_prod` macro for the cases where side effects of the trace event are _expected_ to be lost in prod.
+
 ## 1.0.7
 ### Non-BC changes
 - Change the format of `$trace_begin` event from `#{?snk_kind => '$trace_begin', ts => ...}` to `#{?snk_kind => '$trace_begin', ?snk_meta => #{time => ...}}`

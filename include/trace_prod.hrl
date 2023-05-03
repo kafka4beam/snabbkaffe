@@ -3,9 +3,13 @@
 
 -include("common.hrl").
 
+-ifndef(SNK_PROD_KIND).
+-define(SNK_PROD_KIND, ?snk_kind).
+-endif.
+
 -define(tp(LEVEL, KIND, EVT),
         logger:log(LEVEL,
-                   EVT#{ ?snk_kind => KIND },
+                   EVT#{ ?SNK_PROD_KIND => KIND },
                    #{ mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}
                     , line => ?LINE
                     , file => ?FILE
