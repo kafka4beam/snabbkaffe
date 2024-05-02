@@ -26,6 +26,12 @@
 %% Type declarations
 %%================================================================================
 
+%% Stream can be either an ordinary list, or an improper list with
+%% function as a tail, that produces more elements, a.k.a stream.
+%%
+%% WARNING: the user must make sure streams are finite!
+-type stream(A) :: maybe_improper_list(A, [] | fun(() -> stream(A))).
+
 -record(context,
         { size :: non_neg_integer()
         , n = 0 :: non_neg_integer()
@@ -54,24 +60,25 @@
          , max_failures => non_neg_integer() % Limit the number differences returned
          , context => non_neg_integer()      % Add N elements around each difference
          , window => pos_integer()           % Look ahead when detecting skips
+         , comment => term()
          }.
 
 %%================================================================================
 %% API functions
 %%================================================================================
 
--spec assert_lists_eq([_A], [_B]) -> ok.
+-spec assert_lists_eq(stream(_A), stream(_B)) -> ok.
 assert_lists_eq(A, B) ->
   assert_lists_eq(A, B, #{}).
 
--spec assert_lists_eq([_A], [_B], options()) -> ok.
+-spec assert_lists_eq(stream(_A), stream(_B), options()) -> ok.
 assert_lists_eq(A, B, Options) ->
   case diff_lists(Options, A, B) of
     [] ->
       ok;
     Fails ->
       logger:error("Lists are not equal:~n~s", [format(Fails)]),
-      error(lists_not_equal)
+      error({lists_not_equal, maps:get(comment, Options, "")})
   end.
 
 -spec format(diff(_A, _B) | [diff(_A, _B)]) -> iolist().
@@ -97,7 +104,7 @@ format({changed, T1, T2}) ->
 format(L) when is_list(L) ->
   lists:map(fun format/1, L).
 
--spec diff_lists(options(), [A], [B]) -> [diff(A, B)].
+-spec diff_lists(options(), stream(A), stream(B)) -> [diff(A, B)].
 diff_lists(Custom, A, B) ->
   Default = #{ compare_fun => fun(X, Y) -> X =:= Y end
              , context => 5
@@ -132,6 +139,10 @@ diff_lists(Custom, A, B) ->
 %% Internal functions
 %%================================================================================
 
+go(CFun, Fa, B, S) when is_function(Fa, 0) ->
+  go(CFun, Fa(), B, S);
+go(CFun, A, Fb, S) when is_function(Fb, 0) ->
+  go(CFun, A, Fb(), S);
 go(_CFun, [], [], S) ->
   S;
 go(CFun, [Ha | A], [], S0) ->
@@ -180,8 +191,12 @@ detect_fail(CFun, [Ha | A], [Hb | B], S0 = #s{window = Window}) ->
       }
   end.
 
--spec score(cfun(A, B), A, [B], non_neg_integer()) -> non_neg_integer().
-score(_CFun, _A, L, W) when L =:= []; W =< 0 ->
+-spec score(cfun(A, B), A, stream(B), non_neg_integer()) -> non_neg_integer().
+score(_CFun, _A, _, W) when W =< 0 ->
+  0;
+score(CFun, A, Fun, W) when is_function(Fun) ->
+  score(CFun, A, Fun(), W);
+score(_CFun, _A, [], _W) ->
   0;
 score(CFun, A, [B | L], W) ->
   case CFun(A, B) of

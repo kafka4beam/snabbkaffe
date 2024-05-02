@@ -776,11 +776,8 @@ check_stage(Specs0, Result, Trace, Config) ->
 
 check_deferred(Trace) ->
   case ?of_kind(?snk_deferred_assert, Trace) of
-    [] ->
-      true;
-    Fails ->
-      _ = [logger:error(I) || I <- Fails],
-      false
+    [] -> true;
+    _  -> false
   end.
 
 %% @private
