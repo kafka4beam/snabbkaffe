@@ -1,4 +1,4 @@
-%% Copyright 2021-2023 snabbkaffe contributors
+%% Copyright 2021-2024 snabbkaffe contributors
 %% Copyright 2019-2020 Klarna Bank AB
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -762,7 +762,8 @@ run_stage(Run, Config) ->
 -spec check_stage(trace_specs(Result), Result, trace(), run_config()) -> boolean() | {error, _}.
 check_stage(Fun, Result, Trace, Config) when is_function(Fun) ->
   check_stage([{"check stage", Fun}], Result, Trace, Config);
-check_stage(Specs, Result, Trace, Config) ->
+check_stage(Specs0, Result, Trace, Config) ->
+  Specs = [{"Deferred asserts", fun check_deferred/1} | Specs0],
   Failed = [Spec || Spec <- Specs, not run_trace_spec(Spec, Result, Trace, Config)],
   case Failed of
     [] ->
@@ -771,6 +772,15 @@ check_stage(Specs, Result, Trace, Config) ->
       logger:critical("Check stage failed. Trace dump: ~p~n",
                       [dump_trace(Trace)]),
       {error, check_stage_failed}
+  end.
+
+check_deferred(Trace) ->
+  case ?of_kind(?snk_deferred_assert, Trace) of
+    [] ->
+      true;
+    Fails ->
+      _ = [logger:error(I) || I <- Fails],
+      false
   end.
 
 %% @private

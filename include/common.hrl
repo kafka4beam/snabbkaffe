@@ -13,4 +13,8 @@
 -define(snk_span, '$span').
 -endif.
 
+-ifndef(snk_deferred_assert).
+-define(snk_deferred_assert, 'Assertion failed').
+-endif.
+
 -endif.
