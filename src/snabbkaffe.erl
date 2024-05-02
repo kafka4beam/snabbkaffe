@@ -124,7 +124,7 @@
 
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
              , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
-             , predicate2/0, trace_spec/1, trace_specs/1
+             , predicate2/0, trace_spec/1, trace_specs/1, filter/0
              ]).
 
 %%====================================================================

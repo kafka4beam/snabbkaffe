@@ -1,5 +1,5 @@
-%% Copyright 2019-2020, 2022 Klarna Bank AB
-%% Copyright 2021 snabbkaffe contributors
+%% Copyright 2021-2024 snabbkaffe contributors
+%% Copyright 2019-2020 Klarna Bank AB
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@
 -record(fault,
         { reference :: reference()
         , predicate :: snabbkaffe:predicate()
-        , scenario  :: snabbkaffe:fault_scenario()
+        , scenario  :: fault_scenario()
         , reason    :: term()
         }).
 
