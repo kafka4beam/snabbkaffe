@@ -85,20 +85,20 @@ assert_lists_eq(A, B, Options) ->
 format({ctx, Bin}) when is_binary(Bin) ->
   <<Bin / binary, "\n">>;
 format({ctx, Term}) ->
-  io_lib:format( "      ~9999p~n"
+  io_lib:format( "      ~0p~n"
                , [Term]
                );
 format({extra, Term}) ->
-  io_lib:format( "!! ++ ~9999p~n"
+  io_lib:format( "!! ++ ~0p~n"
                , [Term]
                );
 format({missing, Term}) ->
-  io_lib:format( "!! -- ~9999p~n"
+  io_lib:format( "!! -- ~0p~n"
                , [Term]
                );
 format({changed, T1, T2}) ->
-  io_lib:format( "!! -  ~9999p~n"
-                 "!! +  ~9999p~n"
+  io_lib:format( "!! -  ~0p~n"
+                 "!! +  ~0p~n"
                , [T1, T2]
                );
 format(L) when is_list(L) ->
