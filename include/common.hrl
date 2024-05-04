@@ -13,8 +13,9 @@
 -define(snk_span, '$span').
 -endif.
 
--ifndef(snk_deferred_assert).
--define(snk_deferred_assert, 'Assertion failed').
--endif.
+%% Redefining this macro should be impossible, because when snabbkaffe
+%% library is compiled with different settings, it would lose the
+%% events.
+-define(snk_deferred_assert, 'Deferred assertion failed').
 
 -endif.

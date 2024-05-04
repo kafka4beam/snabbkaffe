@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.10
+
+### Features
+
+- Added new module `snabbkaffe_diff` that helps to compare large lists
+- Added a new macro `?defer_assert(...)` that allows the run stage to continue after encountering a failure, and fails the testcase in the check stage instead.
+
 ## 1.0.9
 ### Features
 - Now it is possible to redefine what `?snk_kind` macro translates to in prod mode by defining `SNK_PROD_KIND` macro.

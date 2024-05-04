@@ -14,8 +14,6 @@ Note: injected crashes are global, they work on the remote nodes.
 Example:
 
 ```erlang
--module(fault_injection_example).
-
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
