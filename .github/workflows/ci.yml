@@ -13,13 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        otp: [25.2, 21.3.8.21]
+        otp: [27, 21]
     container:
       image: erlang:${{ matrix.otp }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - name: Fix repository ownership
+      run: git config --global --add safe.directory /__w/snabbkaffe/snabbkaffe
     - name: Compile and run tests
-      run: make
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get install -y gawk
+        make
     - name: Test with concuerror
       run: make concuerror_test

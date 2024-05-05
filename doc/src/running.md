@@ -7,14 +7,12 @@ Most of the work is done by `?check_trace` macro, which can be placed inside eun
 In the most basic form, Snabbkaffe tests look like this:
 
 ```erlang
--module(running_example).
-
--compile(nowarn_export_all).
--compile(export_all).
-
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
+
+-compile(nowarn_export_all).
+-compile(export_all).
 
 basic_test() ->
   ?check_trace(
@@ -162,3 +160,25 @@ simple_prop() ->
 ```
 
 It is equivalent to the previous example.
+
+## Deferring asserts
+
+Snabbkaffe provides a useful macro `?defer_assert(BODY)` that allows the run stage to continue after encountering an error.
+This is useful for checking multiple properties at once.
+
+Deferred assertions that fail instead are reported as error in the check stage:
+
+```erlang
+deferred_assertion_test() ->
+  ?assertError(
+    _,
+    ?check_trace(
+      begin
+          ?defer_assert(?assert(false, "First assert")),
+          ?defer_assert(?assert(false, "Second assert"))
+      end,
+      [])
+  ).
+```
+
+In the above example both asserts are executed, the run stage succeeds, while the check stage fails.

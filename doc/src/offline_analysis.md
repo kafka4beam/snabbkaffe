@@ -14,8 +14,6 @@ It finds pairs of events matching "cause" and "effect" patterns, and verifies th
 For example, the following test verifies that every received message eventually gets processed:
 
 ```erlang
--module(offline_analysis_example).
-
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
@@ -260,3 +258,10 @@ projection_test() ->
 
 `snabbkaffe:unique(Trace)` will raise an exception of some event in the trace is repeated.
 It ignores the timestamps.
+
+## snabbkaffe_diff
+
+`snabbkaffe_diff` is a helper module that contains routines for comparison of Erlang terms (currently it focuses on the lists).
+
+Functions such as `snabbkaffe_diff:assert_lists_eq/3` and `snabbkaffe_diff:diff_lists/3` help to find and highlight differences between two large lists.
+They try to provide the context while limiting the amount of logs printed when the number of differences is large.

@@ -14,8 +14,6 @@ In the simplest case, `?block_until` macro can be used.
 As the name suggests, it blocks execution of the testcase until an event matching a pattern is emitted:
 
 ```erlang
--module(waiting_events_example).
-
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("snabbkaffe/include/snabbkaffe.hrl").
 
