@@ -18,4 +18,6 @@
 %% events.
 -define(snk_deferred_assert, 'Deferred assertion failed').
 
+-compile(nowarn_update_literal).
+
 -endif.
