@@ -101,7 +101,7 @@
 -type maybe_pair() :: {pair, timed_event(), timed_event()}
                     | {unmatched_cause | unmatched_effect, timed_event()}.
 
--type maybe(A) :: {just, A} | nothing.
+-type 'maybe'(A) :: {just, A} | nothing.
 
 -type run_config() ::
         #{ bucket          => integer()
@@ -123,7 +123,7 @@
                            | [trace_spec(Result) | {string(), trace_spec(Result)}].
 
 -export_type([ kind/0, timestamp/0, event/0, timed_event/0, trace/0
-             , maybe_pair/0, maybe/1, metric/0, run_config/0, predicate/0
+             , maybe_pair/0, 'maybe'/1, metric/0, run_config/0, predicate/0
              , predicate2/0, trace_spec/1, trace_specs/1, filter/0
              ]).
 
