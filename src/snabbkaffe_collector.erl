@@ -27,6 +27,7 @@
         , block_until/3
         , subscribe/4
         , receive_events/1
+        , receive_events_non_blocking/1
         , tp/3
         , push_stat/3
         ]).
@@ -156,6 +157,12 @@ subscribe(Predicate, NEvents, Timeout, BackInTime) when NEvents > 0 ->
 -spec receive_events(subscription()) -> {ok | timeout, [snabbkaffe:event()]}.
 receive_events(Sub = #subscription{ref = Ref, n = NEvents}) ->
   Ret = do_recv_events(Ref, NEvents, []),
+  unsubscribe(Sub),
+  Ret.
+
+-spec receive_events_non_blocking(subscription()) -> [snabbkaffe:event()].
+receive_events_non_blocking(Sub = #subscription{ref = Ref, n = NEvents}) ->
+  Ret = do_recv_events_non_blocking(Ref, NEvents, []),
   unsubscribe(Sub),
   Ret.
 
@@ -423,6 +430,22 @@ do_recv_events(Ref, N, Acc) ->
       {timeout, lists:reverse(Acc)};
     {Ref, Event} ->
       do_recv_events(Ref, N - 1, [Event|Acc])
+  end.
+
+-spec do_recv_events_non_blocking(reference(),
+                                  non_neg_integer(),
+                                  [snabbkaffe:event()]
+                                 ) -> [snabbkaffe:event()].
+do_recv_events_non_blocking(_Ref, 0, Acc) ->
+  lists:reverse(Acc);
+do_recv_events_non_blocking(Ref, N, Acc) ->
+  receive
+    {'DOWN', Ref, _, _, _} ->
+      exit(snabbkaffe_collector_died);
+    {Ref, Event} ->
+      do_recv_events_non_blocking(Ref, N - 1, [Event|Acc])
+  after
+      0 -> lists:reverse(Acc)
   end.
 
 -spec do_wait_for_silence(integer(), integer()) -> ok.
