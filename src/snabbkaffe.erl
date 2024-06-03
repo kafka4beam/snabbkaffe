@@ -34,6 +34,7 @@
         , subscribe/2
         , subscribe/1
         , receive_events/1
+        , receive_events_non_blocking/1
         , wait_async_action/3
         , push_stat/2
         , push_stat/3
@@ -248,6 +249,13 @@ subscribe(Predicate, NEvents, Timeout, BackInTime) ->
         {ok | timeout, [snabbkaffe:event()]}.
 receive_events(SubRef) ->
   snabbkaffe_collector:receive_events(SubRef).
+
+%% @doc Like `receive_events', but returns immediatelly with all collected events so far,
+%% without blocking for more expected events.
+-spec receive_events_non_blocking(snabbkaffe_collector:subscription()) ->
+        [snabbkaffe:event()].
+receive_events_non_blocking(SubRef) ->
+  snabbkaffe_collector:receive_events_non_blocking(SubRef).
 
 -spec start_trace() -> ok.
 start_trace() ->
