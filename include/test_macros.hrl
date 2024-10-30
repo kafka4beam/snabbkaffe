@@ -36,7 +36,7 @@
         end).
 
 -define(panic(KIND, ARGS),
-        error({panic, (ARGS) #{?snk_kind => (KIND)}})).
+        error({panic, maps:merge(ARGS, #{?snk_kind => (KIND)})})).
 
 -define(match_n_events(N, PATTERN),
         {?match_event(PATTERN), N}).

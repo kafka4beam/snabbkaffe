@@ -44,7 +44,7 @@
 -export([ do_forward_trace/1
         ]).
 
--export_type([async_action/0, subscription/0]).
+-export_type([async_action/0, subscription/0, datapoints/0]).
 
 -define(SERVER, ?MODULE).
 
@@ -116,7 +116,7 @@ get_stats() ->
   gen_server:call(?SERVER, get_stats, infinity).
 
 %% NOTE: Concuerror only supports `Timeout=0'
--spec flush_trace() -> snabbkaffe:timed_trace().
+-spec flush_trace() -> snabbkaffe:trace().
 flush_trace() ->
   {ok, Trace} = gen_server:call(?SERVER, flush_trace, infinity),
   Trace.

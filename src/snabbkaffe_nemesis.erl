@@ -91,7 +91,7 @@
 -record(fault,
         { reference :: reference()
         , predicate :: snabbkaffe:predicate()
-        , scenario  :: snabbkaffe:fault_scenario()
+        , scenario  :: fault_scenario()
         , reason    :: term()
         }).
 

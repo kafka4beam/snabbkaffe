@@ -22,9 +22,9 @@
 %% prod and test builds.
 -define(tp_span(KIND, DATA, CODE),
         (fun() ->
-             ?tp(KIND, DATA #{?snk_span => start}),
+             ?tp(KIND, maps:merge(DATA, #{?snk_span => start})),
              __SnkRet = begin CODE end,
-             ?tp(KIND, DATA #{?snk_span => {complete,  __SnkRet}}),
+             ?tp(KIND, maps:merge(DATA, #{?snk_span => {complete,  __SnkRet}})),
              __SnkRet
          end)()).
 
@@ -34,9 +34,9 @@
 %% prod and test builds.
 -define(tp_span(SEVERITY, KIND, DATA, CODE),
         (fun() ->
-             ?tp(SEVERITY, KIND, DATA #{?snk_span => start}),
+             ?tp(SEVERITY, KIND, maps:merge(DATA, #{?snk_span => start})),
              __SnkRet = begin CODE end,
-             ?tp(SEVERITY, KIND, DATA #{?snk_span => {complete,  __SnkRet}}),
+             ?tp(SEVERITY, KIND, maps:merge(DATA, #{?snk_span => {complete,  __SnkRet}})),
              __SnkRet
          end)()).
 

@@ -21,7 +21,7 @@
 -define(tp_ignore_side_effects_in_prod(KIND, EVT), ?tp(KIND, EVT)).
 
 -define(maybe_crash(KIND, DATA),
-        snabbkaffe_nemesis:maybe_crash(KIND, DATA#{?snk_kind => KIND})).
+        snabbkaffe_nemesis:maybe_crash(KIND, maps:merge(DATA, #{?snk_kind => KIND}))).
 
 -define(maybe_crash(DATA),
         snabbkaffe_nemesis:maybe_crash(?__snkStaticUniqueToken, DATA)).

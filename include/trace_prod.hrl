@@ -9,7 +9,7 @@
 
 -define(tp(LEVEL, KIND, EVT),
         logger:log(LEVEL,
-                   EVT#{ ?SNK_PROD_KIND => KIND },
+                   maps:merge(EVT, #{ ?SNK_PROD_KIND => KIND }),
                    #{ mfa => {?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}
                     , line => ?LINE
                     , file => ?FILE
