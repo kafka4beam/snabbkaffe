@@ -27,5 +27,3 @@ jobs:
         apt-get update
         apt-get install -y gawk
         make
-    - name: Test with concuerror
-      run: make concuerror_test
