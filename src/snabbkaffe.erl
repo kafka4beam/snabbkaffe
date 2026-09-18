@@ -1,4 +1,4 @@
-%% Copyright 2021-2024 snabbkaffe contributors
+%% Copyright 2021-2026 snabbkaffe contributors
 %% Copyright 2019-2020 Klarna Bank AB
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -672,10 +672,16 @@ dump_trace(Trace) ->
   FullPath.
 
 format_trace(Trace) ->
-  [#{ ?snk_kind := '$trace_begin'
-    , begin_system_time := BeginTime
-    , ?snk_meta := #{time := BeginMonoTime}
-    }|_] = Trace,
+  case Trace of
+    [#{ ?snk_kind := '$trace_begin'
+      , begin_system_time := BeginTime
+      , ?snk_meta := #{time := BeginMonoTime}
+      }|_] ->
+      ok;
+    _ ->
+      BeginTime = 0,
+      BeginMonoTime = 0
+  end,
   lists:map(fun(E) -> format_event(BeginTime, BeginMonoTime, E) end, Trace).
 
 format_event(BeginTime, BeginMonoTime, #{?snk_kind := Kind0} = Event0) ->

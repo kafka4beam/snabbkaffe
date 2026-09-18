@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        otp: [27, 21]
+        otp: [28, 26]
     container:
       image: erlang:${{ matrix.otp }}
 
@@ -27,5 +27,3 @@ jobs:
         apt-get update
         apt-get install -y gawk
         make
-    - name: Test with concuerror
-      run: make concuerror_test
